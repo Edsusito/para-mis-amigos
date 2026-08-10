@@ -1,0 +1,666 @@
+-- =====================================================
+--        HONDURAS HUB | BLOX FRUITS
+--        Ejecutor: Honduras Hub
+--        Juego: Blox Fruits
+-- =====================================================
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+-- Verificación del Módulo de Combate
+local CombatUtil
+pcall(function() CombatUtil = require(ReplicatedStorage.Modules.CombatUtil) end)
+local originalGetWeaponData = CombatUtil and clonefunction(CombatUtil.GetWeaponData) or nil
+
+local player = Players.LocalPlayer
+local pgui = player:WaitForChild("PlayerGui")
+
+-- Limpieza de GUIs previas
+if pgui:FindFirstChild("HondurasHub") then pgui.HondurasHub:Destroy() end
+
+-- =====================================================
+--                  SCREEN GUI
+-- =====================================================
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "HondurasHub"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = pgui
+
+-- =====================================================
+--               FRAME PRINCIPAL
+-- =====================================================
+local SIZE_OPEN = UDim2.new(0, 340, 0, 460)
+local SIZE_MIN  = UDim2.new(0, 170, 0, 42)
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "Main"
+mainFrame.Size = SIZE_MIN
+mainFrame.Position = UDim2.new(0.5, -170, 0.12, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 20)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 12)
+
+-- Borde brillante
+local stroke = Instance.new("UIStroke", mainFrame)
+stroke.Color = Color3.fromRGB(0, 200, 255)
+stroke.Thickness = 1.5
+
+-- Título
+local title = Instance.new("TextLabel", mainFrame)
+title.Size = UDim2.new(1, -50, 0, 42)
+title.Position = UDim2.new(0, 12, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "🇭🇳 HONDURAS HUB"
+title.TextColor3 = Color3.fromRGB(0, 220, 255)
+title.TextSize = 17
+title.Font = Enum.Font.GothamBlack
+title.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Subtítulo / versión
+local sub = Instance.new("TextLabel", mainFrame)
+sub.Size = UDim2.new(1, -12, 0, 14)
+sub.Position = UDim2.new(0, 12, 0, 26)
+sub.BackgroundTransparency = 1
+sub.Text = "Blox Fruits Edition"
+sub.TextColor3 = Color3.fromRGB(100, 200, 255)
+sub.TextSize = 10
+sub.Font = Enum.Font.Gotham
+sub.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Botón minimizar/expandir
+local toggleBtn = Instance.new("TextButton", mainFrame)
+toggleBtn.Size = UDim2.new(0, 36, 0, 36)
+toggleBtn.Position = UDim2.new(1, -40, 0, 3)
+toggleBtn.BackgroundTransparency = 1
+toggleBtn.Text = "☰"
+toggleBtn.TextColor3 = Color3.new(1, 1, 1)
+toggleBtn.TextSize = 22
+toggleBtn.ZIndex = 10
+toggleBtn.Font = Enum.Font.GothamBold
+
+-- ScrollingFrame de contenido
+local scroll = Instance.new("ScrollingFrame", mainFrame)
+scroll.Size = UDim2.new(1, -16, 1, -52)
+scroll.Position = UDim2.new(0, 8, 0, 50)
+scroll.BackgroundTransparency = 1
+scroll.BorderSizePixel = 0
+scroll.CanvasSize = UDim2.new(0, 0, 0, 1100)
+scroll.ScrollBarThickness = 3
+scroll.ScrollBarImageColor3 = Color3.fromRGB(0, 200, 255)
+scroll.Visible = false
+scroll.ZIndex = 5
+
+local layout = Instance.new("UIListLayout", scroll)
+layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+layout.Padding = UDim.new(0, 7)
+
+-- =====================================================
+--           FUNCIONES DE UI HELPER
+-- =====================================================
+local function crearSeccion(texto)
+    local lbl = Instance.new("TextLabel", scroll)
+    lbl.Size = UDim2.new(1, 0, 0, 28)
+    lbl.BackgroundColor3 = Color3.fromRGB(0, 60, 80)
+    lbl.BackgroundTransparency = 0.4
+    lbl.Text = "◈  " .. texto:upper() .. "  ◈"
+    lbl.TextColor3 = Color3.fromRGB(0, 220, 255)
+    lbl.TextSize = 10
+    lbl.Font = Enum.Font.GothamBlack
+    lbl.ZIndex = 6
+    Instance.new("UICorner", lbl).CornerRadius = UDim.new(0, 6)
+    return lbl
+end
+
+local function crearBoton(texto, bordeColor)
+    local btn = Instance.new("TextButton", scroll)
+    btn.Size = UDim2.new(0.96, 0, 0, 36)
+    btn.BackgroundColor3 = Color3.fromRGB(18, 18, 32)
+    btn.Text = texto
+    btn.TextColor3 = Color3.fromRGB(210, 210, 210)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 13
+    btn.ZIndex = 6
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+    local s = Instance.new("UIStroke", btn)
+    s.Color = bordeColor or Color3.fromRGB(0, 200, 255)
+    s.Thickness = 1.2
+    return btn
+end
+
+-- =====================================================
+--             CREACIÓN DE BOTONES
+-- =====================================================
+
+crearSeccion("Combat & Visuals")
+local hitboxBtn   = crearBoton("Hitbox Expand: 2048 Studs", Color3.fromRGB(255, 60, 60))
+local killAuraBtn = crearBoton("☠️  Kill Aura", Color3.fromRGB(180, 0, 255))
+local espBtn      = crearBoton("ESP Players & NPCs", Color3.fromRGB(255, 130, 0))
+
+crearSeccion("Aimbot — ShiftLock")
+local aimbotBtn  = crearBoton("🎯  Aimbot (ShiftLock)", Color3.fromRGB(255, 50, 100))
+local macroXZBtn = crearBoton("✏️  Macro XZ (tecla R)", Color3.fromRGB(200, 80, 255))
+
+crearSeccion("Movimiento")
+local speedBtn  = crearBoton("Speed Controller", Color3.fromRGB(0, 255, 140))
+local jumpBtn   = crearBoton("Infinite Jump", Color3.fromRGB(0, 140, 255))
+local noclipBtn = crearBoton("No Clip", Color3.fromRGB(200, 200, 200))
+
+crearSeccion("Teleports — Mar 2")
+local tpBarcoBtn = crearBoton("🚢  Teleport al Barco", Color3.fromRGB(0, 200, 130))
+
+crearSeccion("Teleports — Mar 3")
+local tpCastilloBtn = crearBoton("🏰  Teleport al Castillo", Color3.fromRGB(160, 0, 255))
+
+-- =====================================================
+--                  ESP AVANZADO
+-- =====================================================
+local espActivo = false
+
+local function aplicarESP(modelo, nombre, color)
+    if not modelo:FindFirstChild("HumanoidRootPart") then return end
+
+    local hl = modelo:FindFirstChild("HondurasHL") or Instance.new("Highlight")
+    hl.Name = "HondurasHL"
+    hl.FillColor = color
+    hl.OutlineColor = Color3.new(1, 1, 1)
+    hl.FillTransparency = 0.5
+    hl.Enabled = true
+    hl.Parent = modelo
+
+    local bg = modelo.HumanoidRootPart:FindFirstChild("HondurasTag") or Instance.new("BillboardGui", modelo.HumanoidRootPart)
+    bg.Name = "HondurasTag"
+    bg.Size = UDim2.new(0, 200, 0, 50)
+    bg.StudsOffset = Vector3.new(0, 3.5, 0)
+    bg.AlwaysOnTop = true
+    bg.Enabled = true
+
+    local tl = bg:FindFirstChild("Lbl") or Instance.new("TextLabel", bg)
+    tl.Name = "Lbl"
+    tl.Size = UDim2.new(1, 0, 1, 0)
+    tl.BackgroundTransparency = 1
+    tl.TextColor3 = color
+    tl.TextStrokeTransparency = 0
+    tl.Font = Enum.Font.GothamBold
+    tl.TextSize = 13
+
+    spawn(function()
+        while modelo and modelo:FindFirstChild("HumanoidRootPart") and espActivo do
+            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                local dist = math.floor((player.Character.HumanoidRootPart.Position - modelo.HumanoidRootPart.Position).Magnitude)
+                tl.Text = nombre .. " [" .. dist .. "m]"
+            end
+            task.wait(0.25)
+        end
+        pcall(function() bg:Destroy() end)
+        pcall(function() hl:Destroy() end)
+    end)
+end
+
+espBtn.MouseButton1Click:Connect(function()
+    espActivo = not espActivo
+    espBtn.Text = espActivo and "✅  ESP: ACTIVADO" or "ESP Players & NPCs"
+    espBtn.BackgroundColor3 = espActivo and Color3.fromRGB(60, 40, 10) or Color3.fromRGB(18, 18, 32)
+
+    if espActivo then
+        spawn(function()
+            while espActivo do
+                -- ESP Jugadores
+                for _, v in pairs(Players:GetPlayers()) do
+                    if v ~= player and v.Character then
+                        aplicarESP(v.Character, v.Name, Color3.fromRGB(255, 60, 60))
+                    end
+                end
+                -- ESP NPCs
+                for _, v in pairs(workspace:GetChildren()) do
+                    if v:IsA("Model") and v:FindFirstChild("Humanoid") and not Players:GetPlayerFromCharacter(v) then
+                        aplicarESP(v, v.Name, Color3.fromRGB(0, 220, 255))
+                    end
+                end
+                task.wait(2)
+            end
+        end)
+    end
+end)
+
+-- =====================================================
+--             CONTROL DE VELOCIDAD (UI FLOTANTE)
+-- =====================================================
+local velValor = 16
+local velActivo = false
+
+local velFrame = Instance.new("Frame", screenGui)
+velFrame.Size = UDim2.new(0, 130, 0, 58)
+velFrame.Position = UDim2.new(0, 20, 0.5, 0)
+velFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 20)
+velFrame.Active = true
+velFrame.Draggable = true
+velFrame.Visible = false
+Instance.new("UICorner", velFrame).CornerRadius = UDim.new(0, 10)
+local velStroke = Instance.new("UIStroke", velFrame)
+velStroke.Color = Color3.fromRGB(0, 220, 255)
+velStroke.Thickness = 1
+
+local velLabel = Instance.new("TextLabel", velFrame)
+velLabel.Size = UDim2.new(1, 0, 0, 22)
+velLabel.Position = UDim2.new(0, 0, 0, 2)
+velLabel.BackgroundTransparency = 1
+velLabel.Text = "⚡ Velocidad: 16"
+velLabel.TextColor3 = Color3.fromRGB(0, 220, 255)
+velLabel.Font = Enum.Font.GothamBold
+velLabel.TextSize = 11
+
+local bMenos = Instance.new("TextButton", velFrame)
+bMenos.Size = UDim2.new(0, 44, 0, 24)
+bMenos.Position = UDim2.new(0, 6, 0, 28)
+bMenos.BackgroundColor3 = Color3.fromRGB(35, 35, 55)
+bMenos.Text = "−"
+bMenos.TextColor3 = Color3.new(1, 1, 1)
+bMenos.Font = Enum.Font.GothamBold
+bMenos.TextSize = 16
+Instance.new("UICorner", bMenos).CornerRadius = UDim.new(0, 6)
+
+local bMas = Instance.new("TextButton", velFrame)
+bMas.Size = UDim2.new(0, 44, 0, 24)
+bMas.Position = UDim2.new(0, 80, 0, 28)
+bMas.BackgroundColor3 = Color3.fromRGB(35, 35, 55)
+bMas.Text = "+"
+bMas.TextColor3 = Color3.new(1, 1, 1)
+bMas.Font = Enum.Font.GothamBold
+bMas.TextSize = 16
+Instance.new("UICorner", bMas).CornerRadius = UDim.new(0, 6)
+
+speedBtn.MouseButton1Click:Connect(function()
+    velActivo = not velActivo
+    velFrame.Visible = velActivo
+    speedBtn.Text = velActivo and "✅  Speed: ACTIVO" or "Speed Controller"
+    speedBtn.BackgroundColor3 = velActivo and Color3.fromRGB(10, 35, 20) or Color3.fromRGB(18, 18, 32)
+end)
+
+bMas.MouseButton1Click:Connect(function()
+    velValor = math.clamp(velValor + 20, 16, 400)
+    velLabel.Text = "⚡ Velocidad: " .. velValor
+end)
+bMenos.MouseButton1Click:Connect(function()
+    velValor = math.clamp(velValor - 20, 16, 400)
+    velLabel.Text = "⚡ Velocidad: " .. velValor
+end)
+
+RunService.Heartbeat:Connect(function()
+    if velActivo and player.Character and player.Character:FindFirstChild("Humanoid") then
+        local hum = player.Character.Humanoid
+        if hum.MoveDirection.Magnitude > 0 then
+            player.Character:TranslateBy(hum.MoveDirection * (velValor / 45))
+        end
+    end
+end)
+
+-- =====================================================
+--                  NO CLIP
+-- =====================================================
+local noclipActivo = false
+
+noclipBtn.MouseButton1Click:Connect(function()
+    noclipActivo = not noclipActivo
+    noclipBtn.Text = noclipActivo and "✅  No Clip: ON" or "No Clip"
+    noclipBtn.BackgroundColor3 = noclipActivo and Color3.fromRGB(30, 30, 30) or Color3.fromRGB(18, 18, 32)
+end)
+
+RunService.Stepped:Connect(function()
+    if noclipActivo and player.Character then
+        for _, p in pairs(player.Character:GetDescendants()) do
+            if p:IsA("BasePart") then p.CanCollide = false end
+        end
+    end
+end)
+
+-- =====================================================
+--                 INFINITE JUMP
+-- =====================================================
+local infJumpActivo = false
+
+jumpBtn.MouseButton1Click:Connect(function()
+    infJumpActivo = not infJumpActivo
+    jumpBtn.Text = infJumpActivo and "✅  Infinite Jump: ON" or "Infinite Jump"
+    jumpBtn.BackgroundColor3 = infJumpActivo and Color3.fromRGB(10, 20, 45) or Color3.fromRGB(18, 18, 32)
+end)
+
+UserInputService.JumpRequest:Connect(function()
+    if infJumpActivo and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+        player.Character.Humanoid:ChangeState("Jumping")
+    end
+end)
+
+-- =====================================================
+--               HITBOX EXPAND 2048
+-- =====================================================
+local hitboxActivo = false
+
+hitboxBtn.MouseButton1Click:Connect(function()
+    hitboxActivo = not hitboxActivo
+    hitboxBtn.Text = hitboxActivo and "✅  Hitbox 2048: ON" or "Hitbox Expand: 2048 Studs"
+    hitboxBtn.BackgroundColor3 = hitboxActivo and Color3.fromRGB(45, 10, 10) or Color3.fromRGB(18, 18, 32)
+end)
+
+if originalGetWeaponData then
+    hookfunction(CombatUtil.GetWeaponData, newcclosure(function(self, name, ...)
+        local data = originalGetWeaponData(self, name, ...)
+        if hitboxActivo and type(data) == "table" then
+            return setmetatable({}, {
+                __index = function(_, k)
+                    return k == "HitboxMagnitude" and 2048 or data[k]
+                end
+            })
+        end
+        return data
+    end))
+end
+
+-- =====================================================
+--                  TELEPORTS
+-- =====================================================
+tpBarcoBtn.MouseButton1Click:Connect(function()
+    if player.Character then
+        player.Character:PivotTo(CFrame.new(923, 125, 32853))
+    end
+end)
+
+tpCastilloBtn.MouseButton1Click:Connect(function()
+    if player.Character then
+        player.Character:PivotTo(CFrame.new(-5085, 315, -3150))
+    end
+end)
+
+
+-- =====================================================
+--            AIMBOT (del Krasy Hub — ShiftLock)
+-- =====================================================
+local Camera         = workspace.CurrentCamera
+local aimbotActivo   = false
+local macroXZActivo  = false
+local aimMaxDist     = 500
+local aimFOV         = 150
+
+local function getClosestPlayerAim()
+    local target = nil
+    local shortest = aimFOV
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = p.Character.HumanoidRootPart
+            local myHRP = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+            if not myHRP then continue end
+            local dist = (myHRP.Position - hrp.Position).Magnitude
+            if dist <= aimMaxDist then
+                local pos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+                if onScreen then
+                    local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+                    local distCenter = (Vector2.new(pos.X, pos.Y) - center).Magnitude
+                    if distCenter < shortest then
+                        target = hrp
+                        shortest = distCenter
+                    end
+                end
+            end
+        end
+    end
+    return target
+end
+
+-- Bucle Aimbot (RenderStepped)
+RunService.RenderStepped:Connect(function()
+    local isShiftLock = UserInputService.MouseBehavior == Enum.MouseBehavior.LockCenter
+    if aimbotActivo and isShiftLock then
+        local target = getClosestPlayerAim()
+        if target then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Position)
+        end
+    end
+end)
+
+-- Macro XZ (se activa con R en ShiftLock)
+UserInputService.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if macroXZActivo and input.KeyCode == Enum.KeyCode.R then
+        local isShiftLock = UserInputService.MouseBehavior == Enum.MouseBehavior.LockCenter
+        if isShiftLock then
+            task.spawn(function()
+                -- Ejecutar X
+                VirtualInputManager:SendKeyEvent(true,  Enum.KeyCode.X, false, game)
+                task.wait(0.05)
+                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.X, false, game)
+                task.wait(0.1)
+                -- Ejecutar Z
+                VirtualInputManager:SendKeyEvent(true,  Enum.KeyCode.Z, false, game)
+                task.wait(0.05)
+                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Z, false, game)
+            end)
+        end
+    end
+end)
+
+-- Panel flotante Aimbot (FOV + Distancia)
+local aimFrame = Instance.new("Frame", screenGui)
+aimFrame.Size = UDim2.new(0, 150, 0, 80)
+aimFrame.Position = UDim2.new(0, 20, 0.35, 0)
+aimFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 20)
+aimFrame.Active = true
+aimFrame.Draggable = true
+aimFrame.Visible = false
+Instance.new("UICorner", aimFrame).CornerRadius = UDim.new(0, 10)
+local aimStroke = Instance.new("UIStroke", aimFrame)
+aimStroke.Color = Color3.fromRGB(255, 50, 100)
+aimStroke.Thickness = 1
+
+local aimTitle = Instance.new("TextLabel", aimFrame)
+aimTitle.Size = UDim2.new(1, 0, 0, 20)
+aimTitle.Position = UDim2.new(0, 0, 0, 2)
+aimTitle.BackgroundTransparency = 1
+aimTitle.Text = "🎯 Aimbot Config"
+aimTitle.TextColor3 = Color3.fromRGB(255, 80, 120)
+aimTitle.Font = Enum.Font.GothamBold
+aimTitle.TextSize = 11
+
+-- Etiqueta FOV
+local fovLabel = Instance.new("TextLabel", aimFrame)
+fovLabel.Size = UDim2.new(1, -10, 0, 18)
+fovLabel.Position = UDim2.new(0, 5, 0, 24)
+fovLabel.BackgroundTransparency = 1
+fovLabel.Text = "FOV: 150"
+fovLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+fovLabel.Font = Enum.Font.Gotham
+fovLabel.TextSize = 10
+
+local fovMenos = Instance.new("TextButton", aimFrame)
+fovMenos.Size = UDim2.new(0, 30, 0, 18)
+fovMenos.Position = UDim2.new(0, 5, 0, 44)
+fovMenos.BackgroundColor3 = Color3.fromRGB(35, 35, 55)
+fovMenos.Text = "−"
+fovMenos.TextColor3 = Color3.new(1,1,1)
+fovMenos.Font = Enum.Font.GothamBold
+fovMenos.TextSize = 14
+Instance.new("UICorner", fovMenos).CornerRadius = UDim.new(0, 5)
+
+local fovMas = Instance.new("TextButton", aimFrame)
+fovMas.Size = UDim2.new(0, 30, 0, 18)
+fovMas.Position = UDim2.new(0, 40, 0, 44)
+fovMas.BackgroundColor3 = Color3.fromRGB(35, 35, 55)
+fovMas.Text = "+"
+fovMas.TextColor3 = Color3.new(1,1,1)
+fovMas.Font = Enum.Font.GothamBold
+fovMas.TextSize = 14
+Instance.new("UICorner", fovMas).CornerRadius = UDim.new(0, 5)
+
+-- Etiqueta Distancia
+local distLabel = Instance.new("TextLabel", aimFrame)
+distLabel.Size = UDim2.new(1, -10, 0, 18)
+distLabel.Position = UDim2.new(0, 80, 0, 24)
+distLabel.BackgroundTransparency = 1
+distLabel.Text = "Dist: 500"
+distLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+distLabel.Font = Enum.Font.Gotham
+distLabel.TextSize = 10
+
+local distMenos = Instance.new("TextButton", aimFrame)
+distMenos.Size = UDim2.new(0, 30, 0, 18)
+distMenos.Position = UDim2.new(0, 80, 0, 44)
+distMenos.BackgroundColor3 = Color3.fromRGB(35, 35, 55)
+distMenos.Text = "−"
+distMenos.TextColor3 = Color3.new(1,1,1)
+distMenos.Font = Enum.Font.GothamBold
+distMenos.TextSize = 14
+Instance.new("UICorner", distMenos).CornerRadius = UDim.new(0, 5)
+
+local distMas = Instance.new("TextButton", aimFrame)
+distMas.Size = UDim2.new(0, 30, 0, 18)
+distMas.Position = UDim2.new(0, 115, 0, 44)
+distMas.BackgroundColor3 = Color3.fromRGB(35, 35, 55)
+distMas.Text = "+"
+distMas.TextColor3 = Color3.new(1,1,1)
+distMas.Font = Enum.Font.GothamBold
+distMas.TextSize = 14
+Instance.new("UICorner", distMas).CornerRadius = UDim.new(0, 5)
+
+-- Conexiones panel Aimbot
+fovMas.MouseButton1Click:Connect(function()
+    aimFOV = math.clamp(aimFOV + 25, 25, 800)
+    fovLabel.Text = "FOV: " .. aimFOV
+end)
+fovMenos.MouseButton1Click:Connect(function()
+    aimFOV = math.clamp(aimFOV - 25, 25, 800)
+    fovLabel.Text = "FOV: " .. aimFOV
+end)
+distMas.MouseButton1Click:Connect(function()
+    aimMaxDist = math.clamp(aimMaxDist + 50, 50, 1500)
+    distLabel.Text = "Dist: " .. aimMaxDist
+end)
+distMenos.MouseButton1Click:Connect(function()
+    aimMaxDist = math.clamp(aimMaxDist - 50, 50, 1500)
+    distLabel.Text = "Dist: " .. aimMaxDist
+end)
+
+-- Botón Aimbot toggle
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
+aimbotBtn.MouseButton1Click:Connect(function()
+    aimbotActivo = not aimbotActivo
+    aimFrame.Visible = aimbotActivo
+    aimbotBtn.Text = aimbotActivo and "✅  Aimbot: ON" or "🎯  Aimbot (ShiftLock)"
+    aimbotBtn.BackgroundColor3 = aimbotActivo and Color3.fromRGB(50, 10, 20) or Color3.fromRGB(18, 18, 32)
+end)
+
+macroXZBtn.MouseButton1Click:Connect(function()
+    macroXZActivo = not macroXZActivo
+    macroXZBtn.Text = macroXZActivo and "✅  Macro XZ: ON (R)" or "✏️  Macro XZ (tecla R)"
+    macroXZBtn.BackgroundColor3 = macroXZActivo and Color3.fromRGB(35, 10, 50) or Color3.fromRGB(18, 18, 32)
+end)
+
+-- =====================================================
+--                   KILL AURA
+-- =====================================================
+-- Usa los RemoteEvents reales de Blox Fruits para registrar
+-- hits en rango. El botón es arrastrable y NO toca el input
+-- de cámara (InputChanged solo mueve el botón, no interfiere).
+
+local kaActivo      = false
+local kaRange       = 5000
+local kaConnection  = nil
+
+-- Remotes de Blox Fruits
+local Net            = pcall(function() return ReplicatedStorage.Modules.Net end) and ReplicatedStorage:FindFirstChild("Modules") and ReplicatedStorage.Modules:FindFirstChild("Net")
+local RegisterHit    = Net and Net:FindFirstChild("RE/RegisterHit")
+local RegisterAttack = Net and Net:FindFirstChild("RE/RegisterAttack")
+
+local function kaAtacarTargets(targets)
+    pcall(function()
+        if not targets or #targets == 0 then return end
+        local allTargets = {}
+        for _, char in pairs(targets) do
+            local head = char:FindFirstChild("Head")
+            if head then
+                allTargets[#allTargets + 1] = { char, head }
+            end
+        end
+        if #allTargets == 0 then return end
+        if RegisterAttack then RegisterAttack:FireServer(0) end
+        if RegisterHit    then RegisterHit:FireServer(allTargets[1][2], allTargets) end
+    end)
+end
+
+local function kaStart()
+    if kaConnection then task.cancel(kaConnection) end
+    kaConnection = task.spawn(function()
+        while kaActivo do
+            task.wait(0.01)
+            local myChar = player.Character
+            local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
+            if not myHRP then continue end
+
+            local targets = {}
+
+            -- Jugadores
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= player and p.Character then
+                    local hum = p.Character:FindFirstChild("Humanoid")
+                    local hrp = p.Character:FindFirstChild("HumanoidRootPart")
+                    if hum and hrp and hum.Health > 0 then
+                        if (hrp.Position - myHRP.Position).Magnitude <= kaRange then
+                            targets[#targets + 1] = p.Character
+                        end
+                    end
+                end
+            end
+
+            -- NPCs (carpeta Enemies)
+            local enemies = workspace:FindFirstChild("Enemies")
+            if enemies then
+                for _, npc in pairs(enemies:GetChildren()) do
+                    local hum = npc:FindFirstChild("Humanoid")
+                    local hrp = npc:FindFirstChild("HumanoidRootPart")
+                    if hum and hrp and hum.Health > 0 then
+                        if (hrp.Position - myHRP.Position).Magnitude <= kaRange then
+                            targets[#targets + 1] = npc
+                        end
+                    end
+                end
+            end
+
+            if #targets > 0 then
+                kaAtacarTargets(targets)
+            end
+        end
+    end)
+end
+
+local function kaStop()
+    if kaConnection then
+        task.cancel(kaConnection)
+        kaConnection = nil
+    end
+end
+
+killAuraBtn.MouseButton1Click:Connect(function()
+    kaActivo = not kaActivo
+    killAuraBtn.Text = kaActivo and "✅  Kill Aura: ON" or "☠️  Kill Aura"
+    killAuraBtn.BackgroundColor3 = kaActivo and Color3.fromRGB(35, 0, 55) or Color3.fromRGB(18, 18, 32)
+    if kaActivo then kaStart() else kaStop() end
+end)
+
+-- =====================================================
+--         TOGGLE MINIMIZAR / EXPANDIR
+-- =====================================================
+local minimizado = true
+
+toggleBtn.MouseButton1Click:Connect(function()
+    minimizado = not minimizado
+    local objetivo = minimizado and SIZE_MIN or SIZE_OPEN
+    local tween = TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = objetivo})
+    tween:Play()
+    scroll.Visible = not minimizado
+    toggleBtn.Text = minimizado and "☰" or "✕"
+end)
