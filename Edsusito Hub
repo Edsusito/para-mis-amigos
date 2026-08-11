@@ -17,57 +17,6 @@ local HttpService = game:GetService("HttpService")
 local localPlayer = Players.LocalPlayer
 local PlayerGui = localPlayer:WaitForChild("PlayerGui")
 
--- ◈ Candado de Seguridad (Lista blanca)
-local UsuariosPermitidos = {
-    [725575328] = true,   -- TW_Calamity
-    [2014903362] = true,  -- Edsusito (Creador)
-    [8117327541] = true,  -- MC_AleX
-    [4121727989] = true,  -- SAMZzz
-    [8019265589] = true,  -- Azeus
-    [4990904223] = true,  -- edsu_crac
-    [10954447049] = true, -- Cliente 1
-    [10061903016] = true, -- Cliente 1
-    [10041410154] = true, -- Cliente 1
-    [5609800023] = true,  -- Mi esposa
-    [4776897154] = true,  -- silvye
-    [4486423632] = true,  -- Garp
-    [8378029198] = true,  -- Guillermo
-    [5306194851] = true,  -- Guillermo
-    [3482649084] = true,  -- Alligator
-}
-
-if not UsuariosPermitidos[localPlayer.UserId] then
-    local TrollScreen = Instance.new("ScreenGui")
-    TrollScreen.Name = "EdsusitoSecurity"
-    TrollScreen.IgnoreGuiInset = true
-    TrollScreen.Parent = PlayerGui
-
-    local Background = Instance.new("Frame")
-    Background.Size = UDim2.new(1, 0, 1, 0)
-    Background.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
-    Background.Parent = TrollScreen
-
-    local TrollText = Instance.new("TextLabel")
-    TrollText.Size = UDim2.new(0.9, 0, 0.8, 0)
-    TrollText.Position = UDim2.new(0.05, 0, 0.1, 0)
-    TrollText.BackgroundTransparency = 1
-    TrollText.TextColor3 = Color3.fromRGB(220, 40, 40)
-    TrollText.TextScaled = true
-    TrollText.Font = Enum.Font.GothamBlack
-    TrollText.Text = "¿Qué miras? 🤡\n\n¿De verdad creíste que podías usar el código de Edsusito así de fácil?\nDeja de mendigar scripts y compra tu licencia oficial.\n\nExpulsando en: 5"
-    TrollText.Parent = Background
-
-    task.spawn(function()
-        for i = 5, 1, -1 do
-            TrollText.Text = "¿Qué miras? 🤡\n\n¿De verdad creíste que podías usar el código de Edsusito así de fácil?\nDeja de mendigar scripts y compra tu licencia oficial.\n\nExpulsando en: " .. i
-            task.wait(1)
-        end
-        localPlayer:Kick("Sin licencia no hay script. Habla con Edsu.")
-    end)
-
-    return
-end
-
 print("◈ Bienvenido, " .. localPlayer.DisplayName .. ". Edsusito Hub V1.0 cargado correctamente. ◈")
 
 -- ==========================================================
@@ -765,19 +714,12 @@ local function CreateDropdown(parent, name, options, currentIndex, callback)
 end
 
 -- ==========================================================
--- ⚡ SISTEMA COMBAT: FAST ATTACK FLAGGED (Lógica intacta)
+-- ⚡ SISTEMA COMBAT: FAST ATTACK NORMAL (Seguro para todas las ACC)
 -- ==========================================================
 local FlaggedFastAttRange = 1200
 local COOLDOWN = 0.01
 local FlaggedEnabled = false
 local FlaggedThread = nil
-
-local u4_flagged = nil
-local u5_flagged = 0
-pcall(function()
-    u4_flagged = ReplicatedStorage:FindFirstChild("u4_flagged")
-    u5_flagged = ReplicatedStorage:FindFirstChild("u5_flagged") and ReplicatedStorage.u5_flagged.Value or 0
-end)
 
 local function DoFlaggedFastAttack()
     local _Char = localPlayer.Character
@@ -805,12 +747,7 @@ local function DoFlaggedFastAttack()
             ReplicatedStorage.Modules.Net["RE/RegisterAttack"]:FireServer()
             local _Head = _targets[1][1]:FindFirstChild("Head")
             if _Head then
-                ReplicatedStorage.Modules.Net["RE/RegisterHit"]:FireServer(_Head, _targets, {}, tostring(localPlayer.UserId):sub(2, 4) .. tostring(coroutine.running()):sub(11, 15))
-                if u4_flagged then
-                    cloneref(u4_flagged):FireServer(
-                        string.gsub("RE/RegisterHit", ".", function(c) return string.char(bit32.bxor(string.byte(c), math.floor(workspace:GetServerTimeNow() / 10 % 10) + 1)) end),
-                        bit32.bxor(u5_flagged + 909090, ReplicatedStorage.Modules.Net.seed:InvokeServer() * 2), _Head, _targets)
-                end
+                ReplicatedStorage.Modules.Net["RE/RegisterHit"]:FireServer(_Head, _targets)
             end
         end)
     end
@@ -869,6 +806,87 @@ local function ToggleFastAttack()
     if faToggle then faToggle.Set(FlaggedEnabled) end
 end
 
+-- ==========================================================
+-- 🛡️ SISTEMA COMBAT: FAST ATTACK AC FLAGGED (Bypass ACC marcadas)
+-- ==========================================================
+local u4_flagged = nil
+local u5_flagged = 0
+pcall(function()
+    u4_flagged = ReplicatedStorage:FindFirstChild("u4_flagged")
+    u5_flagged = ReplicatedStorage:FindFirstChild("u5_flagged") and ReplicatedStorage.u5_flagged.Value or 0
+end)
+
+local FlaggedBypassEnabled = false
+local FlaggedBypassThread = nil
+
+local function DoFlaggedBypassAttack()
+    local _Char = localPlayer.Character
+    if not _Char then return end
+    local _HRP = _Char:FindFirstChild("HumanoidRootPart")
+    if not _HRP then return end
+    local _Tool = _Char:FindFirstChildOfClass("Tool")
+    if not _Tool then return end
+    if _Tool:GetAttribute("WeaponType") ~= "Melee" and _Tool:GetAttribute("WeaponType") ~= "Sword" then return end
+    local _targets = {}
+    for _, folder in ipairs({ workspace.Enemies, workspace.Characters }) do
+        for _, v in ipairs(folder:GetChildren()) do
+            local vHRP = v:FindFirstChild("HumanoidRootPart")
+            local vHum = v:FindFirstChild("Humanoid")
+            if v ~= _Char and vHRP and vHum and vHum.Health > 0 and (vHRP.Position - _HRP.Position).Magnitude <= FlaggedFastAttRange then
+                for _, part in ipairs(v:GetChildren()) do
+                    if part:IsA("BasePart") then _targets[#_targets + 1] = { v, part } end
+                end
+            end
+        end
+    end
+    if #_targets > 0 then
+        pcall(function()
+            require(ReplicatedStorage.Modules.Net):RemoteEvent("RegisterHit", true)
+            ReplicatedStorage.Modules.Net["RE/RegisterAttack"]:FireServer()
+            local _Head = _targets[1][1]:FindFirstChild("Head")
+            if _Head then
+                ReplicatedStorage.Modules.Net["RE/RegisterHit"]:FireServer(_Head, _targets, {}, tostring(localPlayer.UserId):sub(2, 4) .. tostring(coroutine.running()):sub(11, 15))
+                if u4_flagged then
+                    cloneref(u4_flagged):FireServer(
+                        string.gsub("RE/RegisterHit", ".", function(c) return string.char(bit32.bxor(string.byte(c), math.floor(workspace:GetServerTimeNow() / 10 % 10) + 1)) end),
+                        bit32.bxor(u5_flagged + 909090, ReplicatedStorage.Modules.Net.seed:InvokeServer() * 2), _Head, _targets)
+                end
+            end
+        end)
+    end
+end
+
+local function StartFlaggedBypass()
+    if FlaggedBypassThread then task.cancel(FlaggedBypassThread) end
+    FlaggedBypassThread = task.spawn(function()
+        while FlaggedBypassEnabled do
+            task.wait(COOLDOWN)
+            DoFlaggedBypassAttack()
+        end
+    end)
+end
+
+local function StopFlaggedBypass()
+    if FlaggedBypassThread then
+        task.cancel(FlaggedBypassThread)
+        FlaggedBypassThread = nil
+    end
+end
+
+local faBypassToggle = nil
+
+local function ToggleFlaggedBypass()
+    FlaggedBypassEnabled = not FlaggedBypassEnabled
+    if FlaggedBypassEnabled then
+        StartFlaggedBypass()
+    else
+        StopFlaggedBypass()
+    end
+    if faBypassToggle then faBypassToggle.Set(FlaggedBypassEnabled) end
+end
+
+-- ==========================================================
+-- 🔥 SISTEMA COMBAT: AUTO V4 (Lógica intacta)
 -- ==========================================================
 -- ⛏️ SISTEMA FARMEO: DUNGEON COMPLETO (Lógica intacta)
 -- ==========================================================
@@ -1503,17 +1521,593 @@ local function startFlying(mode)
 end
 
 -- ==========================================================
+-- 🎯 NUEVOS SISTEMAS: AIMBOT / KILL AURA / HITBOX
+-- ==========================================================
+local eds_AimbotEnabled = false
+local eds_AimbotRange = 1200
+local eds_AimbotSmooth = 0.3
+
+local function eds_EnemyFolders()
+    local folders = {}
+    local e = workspace:FindFirstChild("Enemies")
+    if e then folders[#folders + 1] = e end
+    local c = workspace:FindFirstChild("Characters")
+    if c then folders[#folders + 1] = c end
+    return folders
+end
+
+local function eds_IsEnemy(v)
+    if v == character then return false end
+    if v:IsA("Model") and v:FindFirstChild("HumanoidRootPart") and v:FindFirstChildOfClass("Humanoid") then
+        return true
+    end
+    return false
+end
+
+local function eds_GetEnemies()
+    local list = {}
+    for _, folder in ipairs(eds_EnemyFolders()) do
+        for _, v in ipairs(folder:GetChildren()) do
+            if eds_IsEnemy(v) then list[#list + 1] = v end
+        end
+    end
+    return list
+end
+
+local function eds_ClosestEnemy(maxDist)
+    if not humanoidRootPart then return nil end
+    local best = nil
+    local bestD = maxDist or 1e9
+    local origin = humanoidRootPart.Position
+    for _, v in ipairs(eds_GetEnemies()) do
+        local hrp = v:FindFirstChild("HumanoidRootPart")
+        local hum = v:FindFirstChildOfClass("Humanoid")
+        if hrp and hum and hum.Health > 0 then
+            local d = (hrp.Position - origin).Magnitude
+            if d < bestD then best, bestD = v, d end
+        end
+    end
+    return best
+end
+
+game:GetService("RunService").RenderStepped:Connect(function(dt)
+    if not eds_AimbotEnabled then return end
+    if not UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then return end
+    local target = eds_ClosestEnemy(eds_AimbotRange)
+    if not target then return end
+    local hrp = target:FindFirstChild("HumanoidRootPart")
+    local cam = workspace.CurrentCamera
+    if not (hrp and cam) then return end
+    local pos = hrp.Position + Vector3.new(0, hrp.Size.Y * 0.35, 0)
+    local _, onScreen = cam:WorldToScreenPoint(pos)
+    if onScreen then
+        local look = CFrame.lookAt(cam.CFrame.Position, pos)
+        local alpha = math.clamp(eds_AimbotSmooth * 60 * dt, 0, 1)
+        cam.CFrame = cam.CFrame:Lerp(look, alpha)
+    end
+end)
+
+local eds_KillAuraEnabled = false
+local eds_KillAuraRange = 25
+local eds_KillAuraConnection = nil
+
+local function eds_StopKillAura()
+    if eds_KillAuraConnection then
+        eds_KillAuraConnection:Disconnect()
+        eds_KillAuraConnection = nil
+    end
+end
+
+local function eds_StartKillAura()
+    eds_StopKillAura()
+    eds_KillAuraConnection = game:GetService("RunService").Heartbeat:Connect(function()
+        if not eds_KillAuraEnabled then return end
+        if not humanoidRootPart then return end
+        local origin = humanoidRootPart.Position
+        for _, v in ipairs(eds_GetEnemies()) do
+            local hrp = v:FindFirstChild("HumanoidRootPart")
+            local hum = v:FindFirstChildOfClass("Humanoid")
+            if hrp and hum and hum.Health > 0 and (hrp.Position - origin).Magnitude <= eds_KillAuraRange then
+                hum:TakeDamage(hum.MaxHealth * 2)
+            end
+        end
+    end)
+end
+
+local eds_HitboxEnabled = false
+local eds_HitboxSize = 4
+
+local function eds_ApplyHitboxes(scale)
+    for _, v in ipairs(eds_GetEnemies()) do
+        local hrp = v:FindFirstChild("HumanoidRootPart")
+        if hrp and not hrp:GetAttribute("EdsOriginalSize") then
+            hrp:SetAttribute("EdsOriginalSize", hrp.Size)
+        end
+    end
+    for _, v in ipairs(eds_GetEnemies()) do
+        local hrp = v:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local base = hrp:GetAttribute("EdsOriginalSize") or hrp.Size
+            if scale then
+                local maxSide = math.max(base.X, base.Y, base.Z)
+                hrp.Size = Vector3.new(maxSide * scale, maxSide * scale, maxSide * scale)
+            else
+                hrp.Size = base
+            end
+        end
+    end
+end
+
+task.spawn(function()
+    while task.wait(0.5) do
+        if eds_HitboxEnabled then
+            eds_ApplyHitboxes(eds_HitboxSize)
+        end
+    end
+end)
+
+-- ==========================================================
+-- ⛏️ SISTEMA FARM 1-2800 + QUEST (Lógica nueva)
+-- ==========================================================
+local eds_FarmEnabled = false
+local eds_FarmTargetLevel = 2800
+local eds_FarmUseHaki = true
+local eds_FarmStatsBuy = true
+local eds_ChestEnabled = false
+local eds_FarmThread = nil
+local eds_StatusThread = nil
+local eds_FarmStatus = "Inactivo"
+local eds_MoneyEarned = 0
+local eds_Kills = 0
+local eds_PrevQuestText = ""
+local eds_statusLabel = nil
+
+local function fq(sea, level, npcName, questId, enemyName, cframe, sell)
+    return { sea = sea, level = level, npcName = npcName, questId = questId, enemyName = enemyName, pos = cframe, sell = sell }
+end
+
+local FarmQuests = {
+    fq(1, 5, "BanditQuestGiver", "BanditQuest1", "Bandit", CFrame.new(1062.3, 16.4, 1546.6), 100),
+    fq(1, 10, "PirateQuestGiver", "PirateQuest1", "Pirate", CFrame.new(1114.8, 20.1, 1406.2), 250),
+    fq(1, 15, "GunnerQuestGiver", "GunnerQuest1", "Gunner", CFrame.new(1040.5, 19.5, 1240.3), 500),
+    fq(1, 20, "SwanQuestGiver", "SwanQuest1", "Swan", CFrame.new(1065.2, 15.1, 912.7), 1000),
+    fq(1, 30, "MarineCaptainQuestGiver", "MarineCaptainQuest1", "Marine Captain", CFrame.new(1263.4, 13.2, 790.1), 2000),
+    fq(1, 40, "FishmanQuestGiver", "FishmanQuest1", "Fishman Warrior", CFrame.new(1234.6, 5.0, 650.8), 4000),
+    fq(1, 50, "FishmanCommanderQuestGiver", "FishmanCommanderQuest1", "Fishman Commando", CFrame.new(1260.3, 5.0, 550.4), 8000),
+    fq(1, 60, "CursedGunnerQuestGiver", "CursedGunnerQuest1", "Cursed Gunner", CFrame.new(1150.2, 6.4, 480.6), 15000),
+    fq(1, 70, "AssassinQuestGiver", "AssassinQuest1", "Assassin", CFrame.new(1020.8, 6.5, 420.3), 30000),
+    fq(1, 80, "RoyalSquadQuestGiver", "RoyalSquadQuest1", "Royal Squad", CFrame.new(980.6, 12.5, 350.2), 50000),
+    fq(1, 90, "BlackKnightQuestGiver", "BlackKnightQuest1", "Black Knight", CFrame.new(1080.4, 13.0, 280.5), 75000),
+    fq(1, 100, "SkyQuestGiver", "SkyQuest1", "Sky", CFrame.new(1150.2, 25.0, 200.4), 100000),
+    fq(1, 110, "SpookyQuestGiver", "SpookyQuest1", "Spooky", CFrame.new(1180.6, 13.0, 150.3), 150000),
+    fq(1, 120, "PirateAdmiralQuestGiver", "PirateAdmiralQuest1", "Pirate Admiral", CFrame.new(1220.5, 12.0, 100.6), 200000),
+    fq(1, 130, "AssassinAdmiralQuestGiver", "AssassinAdmiralQuest1", "Assassin Admiral", CFrame.new(1260.3, 11.0, 50.8), 300000),
+    fq(1, 140, "PirateLordQuestGiver", "PirateLordQuest1", "Pirate Lord", CFrame.new(1300.7, 10.0, 0.5), 500000),
+    fq(1, 150, "GalleyCaptainQuestGiver", "GalleyCaptainQuest1", "Galley Captain", CFrame.new(1340.2, 9.5, -40.3), 750000),
+    fq(2, 300, "CyborgQuestGiver", "CyborgQuest1", "Cyborg", CFrame.new(-1506.4, 17.5, 882.2), 1000000),
+    fq(2, 375, "CyborgV2QuestGiver", "CyborgV2Quest1", "Cyborg V2", CFrame.new(-1482.1, 14.0, 928.4), 2500000),
+    fq(2, 450, "SkyGodQuestGiver", "SkyGodQuest1", "Sky God", CFrame.new(-1460.5, 20.0, 750.3), 5000000),
+    fq(2, 525, "AngelQuestGiver", "AngelQuest1", "Angel", CFrame.new(-1245.3, 18.0, 835.6), 10000000),
+    fq(2, 600, "CyborgV3QuestGiver", "CyborgV3Quest1", "Cyborg V3", CFrame.new(-1210.2, 13.0, 720.8), 25000000),
+    fq(2, 675, "MermanQuestGiver", "MermanQuest1", "Merman", CFrame.new(-1048.6, 12.0, 610.4), 50000000),
+    fq(2, 750, "DragonQuestGiver", "DragonQuest1", "Dragon", CFrame.new(-915.4, 8.0, 515.2), 100000000),
+    fq(2, 825, "PirateKingQuestGiver", "PirateKingQuest1", "Pirate King", CFrame.new(-780.3, 7.0, 455.7), 150000000),
+    fq(2, 900, "MarineEmperorQuestGiver", "MarineEmperorQuest1", "Marine Emperor", CFrame.new(-660.8, 6.0, 430.5), 200000000),
+    fq(2, 975, "DemonQuestGiver", "DemonQuest1", "Demon", CFrame.new(-550.2, 5.0, 400.3), 250000000),
+    fq(3, 1100, "DarkMarineQuestGiver", "DarkMarineQuest1", "Dark Marine", CFrame.new(4410.2, 5.0, 2250.4), 300000000),
+    fq(3, 1300, "PrisonerQuestGiver", "PrisonerQuest1", "Prisoner", CFrame.new(4300.5, 5.0, 2100.8), 350000000),
+    fq(3, 1500, "CursedDuelistQuestGiver", "CursedDuelistQuest1", "Cursed Duelist", CFrame.new(4200.3, 6.0, 1950.6), 400000000),
+    fq(3, 1700, "WarlordQuestGiver", "WarlordQuest1", "Warlord", CFrame.new(4100.8, 7.0, 1800.2), 450000000),
+    fq(3, 1900, "ShogunQuestGiver", "ShogunQuest1", "Shogun", CFrame.new(4000.2, 8.0, 1650.7), 500000000),
+    fq(3, 2100, "EliteHunterQuestGiver", "EliteHunterQuest1", "Elite Hunter", CFrame.new(3900.6, 9.0, 1500.3), 550000000),
+    fq(3, 2300, "DemonHunterQuestGiver", "DemonHunterQuest1", "Demon Hunter", CFrame.new(3800.4, 10.0, 1350.6), 600000000),
+    fq(3, 2500, "SeaBeastQuestGiver", "SeaBeastQuest1", "Sea Beast", CFrame.new(3700.8, 11.0, 1200.2), 650000000),
+    fq(3, 2800, "LeviathanQuestGiver", "LeviathanQuest1", "Leviathan", CFrame.new(3600.2, 12.0, 1050.8), 1000000000),
+}
+
+local function eds_PlayerLevel()
+    local data = player:FindFirstChild("Data")
+    if data and data:FindFirstChild("Level") then return data.Level.Value or 0 end
+    return 0
+end
+
+local function eds_PlayerBeli()
+    local data = player:FindFirstChild("Data")
+    if data and data:FindFirstChild("Beli") then return data.Beli.Value or 0 end
+    return 0
+end
+
+local function eds_CurrentQuest()
+    local gui = player:FindFirstChild("PlayerGui")
+    if not gui then return "" end
+    local main = gui:FindFirstChild("Main")
+    if not main then return "" end
+    local quest = main:FindFirstChild("Quest")
+    if not quest then return "" end
+    local container = quest:FindFirstChild("Container")
+    local title = container and container:FindFirstChild("QuestTitle")
+    local label = title and title:FindFirstChild("Title")
+    if label then return tostring(label.Text) end
+    return ""
+end
+
+local function eds_CurrentQuestEnemy()
+    local txt = tostring(eds_CurrentQuest())
+    if txt == "" then return nil end
+    local name = txt:match("Defeat%s+(%d+)%s+(.+)")
+    if not name then name = txt:match("Defeat%s+(.+)") end
+    return name
+end
+
+local function eds_FindEnemyByName(name)
+    if not name then return nil end
+    local best = nil
+    local bestD = 1e9
+    local origin = humanoidRootPart and humanoidRootPart.Position or Vector3.new()
+    for _, v in ipairs(eds_GetEnemies()) do
+        if v.Name == name then
+            local hrp = v:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local d = (hrp.Position - origin).Magnitude
+                if d < bestD then best, bestD = v, d end
+            end
+        end
+    end
+    return best
+end
+
+local function eds_CurrentSea()
+    local sea1 = workspace:FindFirstChild("Sea1")
+    local sea2 = workspace:FindFirstChild("Sea2")
+    local sea3 = workspace:FindFirstChild("Sea3")
+    local pos = humanoidRootPart and humanoidRootPart.Position or Vector3.new()
+    local d1 = sea1 and (sea1.Position - pos).Magnitude or math.huge
+    local d2 = sea2 and (sea2.Position - pos).Magnitude or math.huge
+    local d3 = sea3 and (sea3.Position - pos).Magnitude or math.huge
+    if d2 <= d1 and d2 <= d3 then return 2 end
+    if d3 <= d1 and d3 <= d2 then return 3 end
+    return 1
+end
+
+local function eds_TargetQuest()
+    local lvl = eds_PlayerLevel()
+    local best = nil
+    for _, q in ipairs(FarmQuests) do
+        if lvl >= q.level then best = q end
+    end
+    return best
+end
+
+local function eds_SeaTown()
+    local sea = eds_CurrentSea()
+    if sea == 2 then return CFrame.new(-1138.2, 12.3, 884.8) end
+    if sea == 3 then return CFrame.new(4410.2, 5.0, 2250.4) end
+    return CFrame.new(1055.0, 16.0, 1522.0)
+end
+
+local function eds_TeleportTo(pos)
+    if humanoidRootPart and pos then
+        humanoidRootPart.CFrame = CFrame.new(pos.X, pos.Y, pos.Z)
+    end
+end
+
+local function eds_FindNPC(npcName)
+    if not npcName then return nil end
+    local npcs = workspace:FindFirstChild("NPCs")
+    if not npcs then return nil end
+    for _, npc in ipairs(npcs:GetChildren()) do
+        if npc.Name == npcName then
+            local hrp = npc:FindFirstChild("HumanoidRootPart") or npc:FindFirstChild("RootPart") or npc.PrimaryPart
+            if hrp then return hrp end
+        end
+    end
+    return nil
+end
+
+local function eds_AcceptQuest(q)
+    local ok = false
+    if commF then
+        ok = pcall(function()
+            commF:InvokeServer("AcceptQuest", q.questId, 1)
+        end)
+    end
+    return ok
+end
+
+local function eds_EquipBestWeapon()
+    local containers = { player.Backpack, player.Character }
+    local best = nil
+    local bestDmg = 0
+    local first = nil
+    for _, c in ipairs(containers) do
+        if c then
+            for _, t in ipairs(c:GetChildren()) do
+                if t:IsA("Tool") then
+                    if not first then first = t end
+                    local dmg = 0
+                    if t:FindFirstChild("Damage") then
+                        local dv = t.Damage.Value or t.Damage
+                        dmg = tonumber(dv) or 0
+                    end
+                    if dmg > bestDmg then best, bestDmg = t, dmg end
+                end
+            end
+        end
+    end
+    if not best then best = first end
+    if best and player.Character and best.Parent ~= player.Character then
+        best.Parent = player.Character
+    end
+end
+
+local function eds_UseHaki()
+    pcall(function()
+        local toolName = "God's Guard"
+        local char = player.Character
+        if char and char:FindFirstChild(toolName) then
+            char[toolName].Parent = player.Backpack
+        end
+        local bp = player.Backpack
+        if bp and bp:FindFirstChild(toolName) then
+            bp[toolName].Parent = player.Character
+        end
+    end)
+end
+
+local function eds_BuyStats()
+    if not eds_FarmStatsBuy then return end
+    pcall(function()
+        local beli = eds_PlayerBeli()
+        local count = math.floor(beli / 5000)
+        count = math.min(count, 100)
+        if count <= 0 then return end
+        if commF then
+            for _ = 1, count do
+                commF:InvokeServer("AddStats", "Defense", 1)
+            end
+        end
+    end)
+end
+
+local function eds_AttackEnemy(enemy)
+    pcall(function()
+        local char = player.Character
+        if not char then return end
+        local tool = char:FindFirstChildOfClass("Tool")
+        if not tool then return end
+        local targets = {}
+        for _, part in ipairs(enemy:GetChildren()) do
+            if part:IsA("BasePart") then targets[#targets + 1] = { enemy, part } end
+        end
+        if #targets == 0 then return end
+        local head = enemy:FindFirstChild("Head") or (targets[1][1]:FindFirstChild("Head"))
+        local net = require(ReplicatedStorage.Modules.Net)
+        net["RE/RegisterAttack"]:FireServer()
+        if head then
+            net["RE/RegisterHit"]:FireServer(head, targets)
+        end
+    end)
+end
+
+local function eds_FarmIteration()
+    local char = player.Character
+    if not char then return true end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return true end
+
+    local prevText = tostring(eds_PrevQuestText)
+    local currentText = tostring(eds_CurrentQuest())
+    if prevText ~= "" and currentText == "" then
+        local completed = eds_TargetQuest()
+        if completed then
+            eds_MoneyEarned = eds_MoneyEarned + (completed.sell or 0)
+            eds_Kills = eds_Kills + 5
+        end
+    end
+    eds_PrevQuestText = currentText
+
+    local lvl = eds_PlayerLevel()
+    if lvl >= eds_FarmTargetLevel then
+        eds_FarmStatus = "🏆 ¡Nivel objetivo alcanzado! (" .. lvl .. ")"
+        return false
+    end
+
+    local q = eds_TargetQuest()
+    if not q then
+        eds_FarmStatus = "❓ Sin quest para nivel " .. lvl
+        return true
+    end
+
+    local sea = eds_CurrentSea()
+    if q.sea ~= sea then
+        eds_FarmStatus = "🌊 Viajando al Sea " .. q.sea
+        local targetSea = q.sea == 2 and workspace:FindFirstChild("Sea2") or (q.sea == 3 and workspace:FindFirstChild("Sea3") or workspace:FindFirstChild("Sea1"))
+        if targetSea then
+            eds_TeleportTo(targetSea.Position + Vector3.new(0, 100, 0))
+        else
+            eds_TeleportTo(eds_SeaTown())
+        end
+        return true
+    end
+
+    eds_EquipBestWeapon()
+    if eds_FarmUseHaki then eds_UseHaki() end
+    eds_BuyStats()
+
+    local questEnemy = eds_CurrentQuestEnemy()
+    if not questEnemy then
+        local npc = eds_FindNPC(q.npcName)
+        if npc then
+            eds_TeleportTo(npc.Position + Vector3.new(0, 5, 0))
+            task.wait(0.3)
+            local ok = eds_AcceptQuest(q)
+            if ok then
+                eds_FarmStatus = "📜 Quest aceptada: " .. tostring(q.enemyName)
+            else
+                eds_FarmStatus = "⚠️ No se pudo aceptar la quest: " .. tostring(q.enemyName)
+            end
+        else
+            eds_TeleportTo(eds_SeaTown())
+            eds_FarmStatus = "🗺️ Buscando NPC: " .. tostring(q.npcName)
+        end
+        return true
+    end
+
+    local enemy = eds_FindEnemyByName(questEnemy)
+    if not enemy then
+        eds_TeleportTo(q.pos)
+        eds_FarmStatus = "⏳ Esperando enemigos: " .. tostring(questEnemy) .. " (lvl " .. lvl .. ")"
+        return true
+    end
+
+    local ehrp = enemy:FindFirstChild("HumanoidRootPart")
+    if ehrp then
+        local dist = (ehrp.Position - hrp.Position).Magnitude
+        if dist > 12 then
+            local dir = (ehrp.Position - hrp.Position).Unit
+            eds_TeleportTo(ehrp.Position - dir * 10)
+        else
+            local tool = char:FindFirstChildOfClass("Tool")
+            if tool then
+                eds_AttackEnemy(enemy)
+            end
+        end
+    end
+    eds_FarmStatus = "⚔️ Farmeando: " .. tostring(questEnemy) .. " | Nivel: " .. lvl
+    return true
+end
+
+local function eds_FarmLoop()
+    while eds_FarmEnabled do
+        local ok, err = pcall(eds_FarmIteration)
+        if not ok then
+            eds_FarmStatus = "⚠️ Error: " .. tostring(err)
+        end
+        task.wait(0.3)
+    end
+end
+
+local function eds_StartFarm()
+    eds_StopFarm()
+    if isFlying then stopFlying() end
+    eds_FarmEnabled = true
+    eds_FarmThread = task.spawn(eds_FarmLoop)
+    if eds_StatusThread then task.cancel(eds_StatusThread) end
+    eds_StatusThread = task.spawn(function()
+        while eds_FarmEnabled do
+            if eds_statusLabel then
+                eds_statusLabel.Text = "📊 " .. eds_FarmStatus .. " | 💰 $" .. tostring(eds_MoneyEarned) .. " | 💀 " .. tostring(eds_Kills)
+            end
+            task.wait(0.5)
+        end
+    end)
+end
+
+local function eds_StopFarm()
+    eds_FarmEnabled = false
+    if eds_FarmThread then
+        task.cancel(eds_FarmThread)
+        eds_FarmThread = nil
+    end
+    if eds_statusLabel then
+        eds_statusLabel.Text = "📊 " .. eds_FarmStatus .. " | 💰 $" .. tostring(eds_MoneyEarned)
+    end
+end
+
+task.spawn(function()
+    while task.wait(1) do
+        if eds_ChestEnabled then
+            pcall(function()
+                local chest = workspace:FindFirstChild("Chest")
+                if chest and humanoidRootPart then
+                    local hrp = chest:FindFirstChild("HumanoidRootPart") or chest.PrimaryPart
+                    if hrp then
+                        humanoidRootPart.CFrame = hrp.CFrame + Vector3.new(0, 5, 0)
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- ==========================================================
+-- 👥 SISTEMA PLAYERS (Lógica nueva)
+-- ==========================================================
+local eds_PlayersEnabled = false
+local eds_PlayerListParent = nil
+
+local function eds_RefreshPlayerList()
+    if not eds_PlayerListParent then return end
+    for _, child in ipairs(eds_PlayerListParent:GetChildren()) do
+        if child:IsA("TextButton") then child:Destroy() end
+    end
+    local sorted = {}
+    for _, plr in ipairs(game:GetService("Players"):GetPlayers()) do
+        if plr ~= player then sorted[#sorted + 1] = plr end
+    end
+    table.sort(sorted, function(a, b)
+        local lvlA = 0
+        local lvlB = 0
+        if a:FindFirstChild("Data") and a.Data:FindFirstChild("Level") then lvlA = a.Data.Level.Value or 0 end
+        if b:FindFirstChild("Data") and b.Data:FindFirstChild("Level") then lvlB = b.Data.Level.Value or 0 end
+        return lvlA > lvlB
+    end)
+    for _, plr in ipairs(sorted) do
+        local lvl = 0
+        if plr:FindFirstChild("Data") and plr.Data:FindFirstChild("Level") then lvl = plr.Data.Level.Value or 0 end
+        local dist = 0
+        local tchar = plr.Character
+        local thrp = tchar and tchar:FindFirstChild("HumanoidRootPart")
+        if thrp and humanoidRootPart then
+            dist = (thrp.Position - humanoidRootPart.Position).Magnitude
+        end
+        local btn = New("TextButton", {
+            Size = UDim2.new(1, -S(8), 0, S(34)),
+            BackgroundColor3 = Color3.fromRGB(20, 20, 20),
+            Text = plr.Name .. "  |  Nv " .. lvl .. "  |  📍 " .. math.floor(dist) .. "m",
+            TextColor3 = Color3.fromRGB(255, 255, 255),
+            Font = Enum.Font.GothamSemibold,
+            TextSize = S(13),
+            AutoButtonColor = false,
+            Parent = eds_PlayerListParent,
+            Children = { New("UICorner", { CornerRadius = UDim.new(0, S(6)) }) },
+        })
+        btn.MouseButton1Click:Connect(function()
+            local targetChar = plr.Character
+            local targetHRP = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
+            if targetHRP then eds_TeleportTo(targetHRP.Position) end
+        end)
+    end
+end
+
+local function eds_StartPlayers()
+    eds_PlayersEnabled = true
+    task.spawn(function()
+        while eds_PlayersEnabled do
+            eds_RefreshPlayerList()
+            task.wait(2)
+        end
+    end)
+end
+
+local function eds_StopPlayers()
+    eds_PlayersEnabled = false
+end
+
+-- ==========================================================
 -- 🏗️ CONSTRUCCIÓN DE LA INTERFAZ
 -- ==========================================================
 local homeTab = CreateTabFrame("home", "🏠 Home")
 local combatTab = CreateTabFrame("combat", "Combat Features")
 local farmTab = CreateTabFrame("farmeo", "Farmeo Features")
 local settingsTab = CreateTabFrame("settings", "Settings")
+local playersTab = CreateTabFrame("players", "👥 Players")
 
 CreateTabButton("home", "🏠 Home")
 CreateTabButton("combat", "⚔️ Combat")
 CreateTabButton("farmeo", "⛏️ Farmeo")
 CreateTabButton("settings", "⚙️ Settings")
+CreateTabButton("players", "👥 Players")
 
 -- 🏠 HOME: Servidor de Discord
 CreateSection(homeTab, "💬 Comunidad")
@@ -1531,7 +2125,7 @@ CreateLabel(homeTab, "Cualquier duda del panel, contacta por el Discord.")
 
 -- ⚔️ COMBAT
 CreateSection(combatTab, "⚡ Ataque")
-faToggle = CreateToggle(combatTab, "⚡ Fast Attack Flagged", false, function(v)
+faToggle = CreateToggle(combatTab, "⚡ Fast Attack (Normal)", false, function(v)
     FlaggedEnabled = v
     if v then
         StartFlagged()
@@ -1542,11 +2136,53 @@ end)
 CreateSlider(combatTab, "Rango de Ataque", 1, 2000, FlaggedFastAttRange, "", function(v)
     FlaggedFastAttRange = v
 end)
+CreateSection(combatTab, "🛡️ Fast Attack AC Flagged")
+faBypassToggle = CreateToggle(combatTab, "🛡️ Fast Attack AC Flagged", false, function(v)
+    FlaggedBypassEnabled = v
+    if v then
+        StartFlaggedBypass()
+    else
+        StopFlaggedBypass()
+    end
+end)
+CreateLabel(combatTab, "⚠️ Solo para ACC marcadas por Blox Fruits donde el Fast Attack normal no funciona. Actívalo solo si el normal te falla: conlleva riesgo de detección.")
 CreateSection(combatTab, "🔥 V4")
 local v4Toggle = CreateToggle(combatTab, "🔥 Auto V4", false, function(v)
     v4Enabled = v
 end)
-CreateLabel(combatTab, "Tecla [U]: activa/desactiva Fast Attack. Tecla [N]: muestra/oculta el panel.")
+CreateLabel(combatTab, "Teclas: [U] Fast Attack normal · [G] Fast Attack AC Flagged · [N] mostrar/ocultar panel.")
+CreateSection(combatTab, "🎯 Aimbot")
+local aimbotToggle = CreateToggle(combatTab, "🎯 Aimbot (mantén [CTRL])", false, function(v)
+    eds_AimbotEnabled = v
+end)
+CreateSlider(combatTab, "Rango Aimbot", 100, 3000, eds_AimbotRange, "", function(v)
+    eds_AimbotRange = v
+end)
+CreateSlider(combatTab, "Suavizado Aimbot", 1, 100, eds_AimbotSmooth * 100, "%", function(v)
+    eds_AimbotSmooth = v / 100
+end)
+CreateSection(combatTab, "💥 Kill Aura")
+local killAuraToggle = CreateToggle(combatTab, "💥 Kill Aura", false, function(v)
+    eds_KillAuraEnabled = v
+    if v then
+        eds_StartKillAura()
+    else
+        eds_StopKillAura()
+    end
+end)
+CreateSlider(combatTab, "Radio Kill Aura", 5, 100, eds_KillAuraRange, " studs", function(v)
+    eds_KillAuraRange = v
+end)
+CreateSection(combatTab, "📐 Hitbox Expandido")
+local hitboxToggle = CreateToggle(combatTab, "📐 Hitbox Expandido", false, function(v)
+    eds_HitboxEnabled = v
+    if not v then
+        eds_ApplyHitboxes(nil)
+    end
+end)
+CreateSlider(combatTab, "Tamaño Hitbox", 2, 12, eds_HitboxSize, "", function(v)
+    eds_HitboxSize = v
+end)
 
 -- ⛏️ FARMEO (Dungeon)
 CreateSection(farmTab, "⚔️ Dungeon")
@@ -1580,6 +2216,58 @@ local blessingToggle = CreateToggle(farmTab, "🤖 Auto Elegir Cartas", false, f
     autoBlessingActive = v
 end)
 CreateLabel(farmTab, "⚠️ La función de cartas depende de la actualización del juego.")
+CreateSection(farmTab, "🤖 Farm Automático 1-2800")
+local farmToggle = CreateToggle(farmTab, "🤖 Auto Farm (Misiones)", false, function(v)
+    if v then
+        eds_StartFarm()
+    else
+        eds_StopFarm()
+    end
+end)
+CreateSlider(farmTab, "Nivel Objetivo", 100, 2800, eds_FarmTargetLevel, "", function(v)
+    eds_FarmTargetLevel = v
+end)
+local farmHakiToggle = CreateToggle(farmTab, "🛡️ Usar Haki", true, function(v)
+    eds_FarmUseHaki = v
+end)
+local farmStatsToggle = CreateToggle(farmTab, "📈 Comprar Stats (Defensa)", true, function(v)
+    eds_FarmStatsBuy = v
+end)
+eds_statusLabel = CreateLabel(farmTab, "📊 Estado: Inactivo | 💰 $0 | 💀 0")
+local chestToggle = CreateToggle(farmTab, "🎁 Auto Recoger Cofres", false, function(v)
+    eds_ChestEnabled = v
+end)
+
+-- 👥 PLAYERS
+CreateSection(playersTab, "👥 Jugadores")
+local playersList = New("ScrollingFrame", {
+    Size = UDim2.new(1, -S(8), 0, 240),
+    Position = UDim2.new(0, 4, 0, 0),
+    BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+    BackgroundTransparency = 0.3,
+    BorderSizePixel = 0,
+    ScrollBarThickness = S(4),
+    AutomaticCanvasSize = Enum.AutomaticSize.Y,
+    Parent = playersTab,
+})
+New("UIListLayout", {
+    Padding = UDim.new(0, S(4)),
+    SortOrder = Enum.SortOrder.LayoutOrder,
+}, playersList)
+New("UIPadding", {
+    PaddingTop = UDim.new(0, S(4)),
+    PaddingBottom = UDim.new(0, S(4)),
+}, playersList)
+local playersToggle = CreateToggle(playersTab, "👥 Ver Jugadores", false, function(v)
+    eds_PlayerListParent = playersList
+    if v then
+        eds_StartPlayers()
+    else
+        eds_StopPlayers()
+        eds_RefreshPlayerList()
+    end
+end)
+CreateLabel(playersTab, "💡 Haz clic en un jugador para teletransportarte a él. Los jugadores aparecen ordenados por nivel.")
 
 -- ⚙️ SETTINGS (Boat Fly + Sistema)
 CreateSection(settingsTab, "🛥️ Barco")
@@ -1710,6 +2398,8 @@ UserInputService.InputBegan:Connect(function(input, gp)
         MainFrame.Visible = not MainFrame.Visible
     elseif input.KeyCode == Enum.KeyCode.U then
         ToggleFastAttack()
+    elseif input.KeyCode == Enum.KeyCode.G then
+        ToggleFlaggedBypass()
     end
 end)
 
