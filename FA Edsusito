@@ -1,0 +1,230 @@
+-- ================================================
+-- FAST ATTACK FLAGGED — edsusito
+-- Panel: [N] (Mostrar/Ocultar) | Toggle FA: [U] / Botón GUI
+-- ================================================
+
+local Players           = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService  = game:GetService("UserInputService")
+local TweenService      = game:GetService("TweenService")
+
+local lp = Players.LocalPlayer
+
+-- ========================
+-- CONFIG
+-- ========================
+local FlaggedFastAttRange = 1200
+local COOLDOWN            = 0.01
+local MINIMIZE_KEY        = Enum.KeyCode.N
+local TOGGLE_KEY          = Enum.KeyCode.U
+
+-- ========================
+-- VARIABLES FLAGGED
+-- ========================
+local u4_flagged = nil
+local u5_flagged = 0
+pcall(function()
+    u4_flagged = ReplicatedStorage:FindFirstChild("u4_flagged")
+    u5_flagged = ReplicatedStorage:FindFirstChild("u5_flagged") and ReplicatedStorage.u5_flagged.Value or 0
+end)
+
+-- ========================
+-- STATE
+-- ========================
+local FlaggedEnabled = false
+local FlaggedThread  = nil
+local guiVisible     = true
+
+-- ================================================
+-- LÓGICA FLAGGED — SIN MODIFICAR
+-- ================================================
+local function DoFlaggedFastAttack()
+    local _Char=lp.Character; if not _Char then return end
+    local _HRP=_Char:FindFirstChild("HumanoidRootPart"); if not _HRP then return end
+    local _Tool=_Char:FindFirstChildOfClass("Tool"); if not _Tool then return end
+    if _Tool:GetAttribute("WeaponType")~="Melee" and _Tool:GetAttribute("WeaponType")~="Sword" then return end
+    local _targets={}
+    for _,folder in ipairs({workspace.Enemies,workspace.Characters}) do
+        for _,v in ipairs(folder:GetChildren()) do
+            local vHRP=v:FindFirstChild("HumanoidRootPart"); local vHum=v:FindFirstChild("Humanoid")
+            if v~=_Char and vHRP and vHum and vHum.Health>0 and (vHRP.Position-_HRP.Position).Magnitude<=FlaggedFastAttRange then
+                for _,part in ipairs(v:GetChildren()) do
+                    if part:IsA("BasePart") then _targets[#_targets+1]={v,part} end
+                end
+            end
+        end
+    end
+    if #_targets>0 then
+        pcall(function()
+            require(ReplicatedStorage.Modules.Net):RemoteEvent("RegisterHit",true)
+            ReplicatedStorage.Modules.Net["RE/RegisterAttack"]:FireServer()
+            local _Head=_targets[1][1]:FindFirstChild("Head")
+            if _Head then
+                ReplicatedStorage.Modules.Net["RE/RegisterHit"]:FireServer(_Head,_targets,{},tostring(lp.UserId):sub(2,4)..tostring(coroutine.running()):sub(11,15))
+                if u4_flagged then
+                    cloneref(u4_flagged):FireServer(
+                        string.gsub("RE/RegisterHit",".",function(c) return string.char(bit32.bxor(string.byte(c),math.floor(workspace:GetServerTimeNow()/10%10)+1)) end),
+                        bit32.bxor(u5_flagged+909090,ReplicatedStorage.Modules.Net.seed:InvokeServer()*2),_Head,_targets)
+                end
+            end
+        end)
+    end
+end
+
+-- ================================================
+-- CONTROL DEL LOOP
+-- ================================================
+local function StartFlagged()
+    if FlaggedThread then task.cancel(FlaggedThread) end
+    FlaggedThread = task.spawn(function()
+        while FlaggedEnabled do
+            task.wait(COOLDOWN)
+            DoFlaggedFastAttack()
+        end
+    end)
+end
+
+local function StopFlagged()
+    if FlaggedThread then
+        task.cancel(FlaggedThread)
+        FlaggedThread = nil
+    end
+end
+
+-- ================================================
+-- GUI
+-- ================================================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "FlaggedFA_edsusito"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = lp:WaitForChild("PlayerGui")
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Size             = UDim2.new(0, 220, 0, 90)
+MainFrame.Position         = UDim2.new(0.5, 0, 0.5, 0)
+MainFrame.AnchorPoint      = Vector2.new(0.5, 0.5)
+MainFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+MainFrame.BorderSizePixel  = 0
+MainFrame.ClipsDescendants = true
+MainFrame.Parent           = ScreenGui
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
+
+-- Header
+local Header = Instance.new("Frame")
+Header.Size             = UDim2.new(1, 0, 0, 34)
+Header.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+Header.BorderSizePixel  = 0
+Header.ZIndex           = 2
+Header.Parent           = MainFrame
+Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 12)
+
+local Title = Instance.new("TextLabel")
+Title.Size               = UDim2.new(1, -12, 1, 0)
+Title.Position           = UDim2.new(0, 12, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text               = "⚡ FA Flagged edsusito"
+Title.TextColor3         = Color3.fromRGB(255, 255, 255)
+Title.Font               = Enum.Font.GothamBold
+Title.TextSize           = 13
+Title.TextXAlignment     = Enum.TextXAlignment.Left
+Title.ZIndex             = 3
+Title.Parent             = Header
+
+local MinHint = Instance.new("TextLabel")
+MinHint.Size             = UDim2.new(0, 50, 1, 0)
+MinHint.Position         = UDim2.new(1, -54, 0, 0)
+MinHint.BackgroundTransparency = 1
+MinHint.Text             = "[N] [U]"
+MinHint.TextColor3       = Color3.fromRGB(110, 110, 110)
+MinHint.Font             = Enum.Font.Gotham
+MinHint.TextSize         = 11
+MinHint.ZIndex           = 3
+MinHint.Parent           = Header
+
+-- Botón Toggle Fast Attack
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Size             = UDim2.new(0, 188, 0, 38)
+ToggleBtn.Position         = UDim2.new(0, 16, 0, 42)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(180, 45, 45)
+ToggleBtn.Text             = "Fast Attack Flagged  —  OFF"
+ToggleBtn.TextColor3       = Color3.fromRGB(255, 255, 255)
+ToggleBtn.Font             = Enum.Font.GothamBold
+ToggleBtn.TextSize         = 14
+ToggleBtn.BorderSizePixel  = 0
+ToggleBtn.ZIndex           = 2
+ToggleBtn.Parent           = MainFrame
+Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 8)
+
+-- ================================================
+-- TOGGLE LOGIC
+-- ================================================
+local COLOR_ON  = Color3.fromRGB(45, 185, 45)
+local COLOR_OFF = Color3.fromRGB(180, 45, 45)
+
+local function Toggle()
+    FlaggedEnabled = not FlaggedEnabled
+
+    local orig = ToggleBtn.Size
+    TweenService:Create(ToggleBtn, TweenInfo.new(0.06), {Size = UDim2.new(0, 178, 0, 34)}):Play()
+    task.delay(0.06, function()
+        TweenService:Create(ToggleBtn, TweenInfo.new(0.1), {Size = orig}):Play()
+    end)
+
+    if FlaggedEnabled then
+        TweenService:Create(ToggleBtn, TweenInfo.new(0.15), {BackgroundColor3 = COLOR_ON}):Play()
+        ToggleBtn.Text = "Fast Attack Flagged  —  ON"
+        StartFlagged()
+    else
+        TweenService:Create(ToggleBtn, TweenInfo.new(0.15), {BackgroundColor3 = COLOR_OFF}):Play()
+        ToggleBtn.Text = "Fast Attack Flagged  —  OFF"
+        StopFlagged()
+    end
+end
+
+ToggleBtn.MouseButton1Click:Connect(Toggle)
+
+-- ================================================
+-- DRAG
+-- ================================================
+local dragging, dragStart, startPos
+
+Header.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging  = true
+        dragStart = input.Position
+        startPos  = MainFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(
+            startPos.X.Scale, startPos.X.Offset + delta.X,
+            startPos.Y.Scale, startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+-- ================================================
+-- KEYBINDS
+-- ================================================
+UserInputService.InputBegan:Connect(function(input, gp)
+    if gp then return end
+
+    -- Tecla N: Mostrar/Ocultar el panel
+    if input.KeyCode == MINIMIZE_KEY then
+        guiVisible = not guiVisible
+        MainFrame.Visible = guiVisible
+    end
+
+    -- Tecla U: Activar/Desactivar Fast Attack
+    if input.KeyCode == TOGGLE_KEY then
+        Toggle()
+    end
+end)
