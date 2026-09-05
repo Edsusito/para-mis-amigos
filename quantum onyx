@@ -1,0 +1,285 @@
+-- ============================================================
+-- QUANTUM ONYX HUB - KEYLESS EDITION
+-- Sistema de key ELIMINADO
+-- Carga directamente los scripts sin verificación
+-- GUI conservada (pero sin funcionalidad de key)
+-- ============================================================
+
+local API_CONFIG = {
+    BASE_URL = "https://api.quantumonyx.cc",
+    FALLBACK_URL = "http://165.232.169.51:22527",
+    DISCORD_INVITE = "https://discord.gg/quantumonyx",
+    KEY_LINKS = {
+        Lootlabs = "https://ads.luarmor.net/get_key?for=Quantum_Onyx_Keysytem-NdUqNPMGBobv",
+        Linkvertise = "https://ads.luarmor.net/get_key?for=Quantum_Onyx_Keysytem-KCyPvypRNlEm",
+    }
+}
+
+local Directory = "https://raw.githubusercontent.com/flazhy/QuantumOnyx/refs/heads/main/Games"
+local Scripts = {
+    Free = {
+        [994732206] = Directory .. "/BloxFruits.lua",
+        [9186719164] = Directory .. "/SailorPiece.lua",
+        [8191429227] = Directory .. "/CutTrees.lua",
+    },
+}
+
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+local GameId = game.GameId
+local gameId = GameId
+
+local HttpRequest = (syn and syn.request)
+    or (http and http.request)
+    or http_request
+    or request
+    or (fluxus and fluxus.request)
+    or (delta and delta.request)
+
+local StarterGui = game:GetService("StarterGui")
+local function Notify(title, desc, accent, duration)
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = title or "Quantum Onyx",
+            Text = desc or "",
+            Duration = duration or 5,
+        })
+    end)
+end
+
+local function LoadScript(tier)
+    if tier == "Free" then
+        local url = Scripts.Free[GameId]
+        if url then
+            pcall(function() loadstring(game:HttpGet(url))() end)
+            Notify("Quantum Onyx", "Free version loaded!", Color3.fromRGB(80, 230, 130))
+        else
+            warn("[Quantum Onyx] No free script found for GameId: " .. tostring(GameId))
+            Notify("Quantum Onyx", "No free script for this game", Color3.fromRGB(255, 150, 80))
+        end
+    elseif tier == "Premium" then
+        -- Intenta cargar Premium desde un enlace directo (si existe)
+        local premiumUrl = "https://raw.githubusercontent.com/flazhy/QuantumOnyx/refs/heads/main/Premium/BloxFruits.lua"
+        pcall(function()
+            local content = game:HttpGet(premiumUrl)
+            local func, err = loadstring(content)
+            if func then
+                func()
+                Notify("Quantum Onyx", "Premium script loaded!", Color3.fromRGB(80, 230, 130))
+            else
+                warn("[Quantum Onyx] Premium error: " .. tostring(err))
+                -- Fallback: cargar Free si Premium falla
+                LoadScript("Free")
+            end
+        end)
+    end
+end
+
+-- ============================================================
+-- GUI SIMPLIFICADA (SIN KEY)
+-- ============================================================
+local function ShowKeylessUI()
+    local SG = Instance.new("ScreenGui")
+    SG.Name = "QO_Keyless"
+    SG.ZIndexBehavior = Enum.ZIndexBehavior.Global
+    SG.ResetOnSpawn = false
+    SG.IgnoreGuiInset = true
+    SG.Parent = game:GetService("CoreGui")
+
+    local Backdrop = Instance.new("Frame")
+    Backdrop.Size = UDim2.new(1, 0, 1, 0)
+    Backdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    Backdrop.BackgroundTransparency = 0.45
+    Backdrop.BorderSizePixel = 0
+    Backdrop.ZIndex = 200
+    Backdrop.Parent = SG
+
+    local W, H = 400, 250
+    local Card = Instance.new("Frame")
+    Card.AnchorPoint = Vector2.new(0.5, 0.5)
+    Card.Position = UDim2.new(0.5, 0, 0.5, 0)
+    Card.Size = UDim2.new(0, W, 0, H)
+    Card.BackgroundColor3 = Color3.fromRGB(15, 12, 24)
+    Card.BackgroundTransparency = 0
+    Card.BorderSizePixel = 0
+    Card.ZIndex = 201
+    Card.ClipsDescendants = true
+    Card.Parent = SG
+
+    local UICorner = Instance.new("UICorner")
+    UICorner.CornerRadius = UDim.new(0, 14)
+    UICorner.Parent = Card
+
+    local UIStroke = Instance.new("UIStroke")
+    UIStroke.Color = Color3.fromRGB(120, 60, 220)
+    UIStroke.Transparency = 0.3
+    UIStroke.Thickness = 1.5
+    UIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    UIStroke.Parent = Card
+
+    -- Decoración
+    local Dec1 = Instance.new("Frame")
+    Dec1.BackgroundColor3 = Color3.fromRGB(80, 20, 160)
+    Dec1.BackgroundTransparency = 0.85
+    Dec1.BorderSizePixel = 0
+    Dec1.Position = UDim2.new(0, -60, 0, -60)
+    Dec1.Size = UDim2.new(0, 220, 0, 220)
+    Dec1.ZIndex = 201
+    Dec1.Parent = Card
+    local Dec1Corner = Instance.new("UICorner")
+    Dec1Corner.CornerRadius = UDim.new(1, 0)
+    Dec1Corner.Parent = Dec1
+
+    local Dec2 = Instance.new("Frame")
+    Dec2.BackgroundColor3 = Color3.fromRGB(40, 10, 110)
+    Dec2.BackgroundTransparency = 0.85
+    Dec2.BorderSizePixel = 0
+    Dec2.Position = UDim2.new(1, -100, 1, -100)
+    Dec2.Size = UDim2.new(0, 180, 0, 180)
+    Dec2.ZIndex = 201
+    Dec2.Parent = Card
+    local Dec2Corner = Instance.new("UICorner")
+    Dec2Corner.CornerRadius = UDim.new(1, 0)
+    Dec2Corner.Parent = Dec2
+
+    -- Header
+    local Header = Instance.new("Frame")
+    Header.BackgroundColor3 = Color3.fromRGB(22, 16, 36)
+    Header.BackgroundTransparency = 0
+    Header.BorderSizePixel = 0
+    Header.Size = UDim2.new(1, 0, 0, 44)
+    Header.ZIndex = 202
+    Header.Parent = Card
+    local HeaderCorner = Instance.new("UICorner")
+    HeaderCorner.CornerRadius = UDim.new(0, 14)
+    HeaderCorner.Parent = Header
+
+    local Icon = Instance.new("ImageLabel")
+    Icon.BackgroundTransparency = 1
+    Icon.Position = UDim2.new(0, 13, 0.5, -8)
+    Icon.Size = UDim2.new(0, 16, 0, 16)
+    Icon.Image = "rbxassetid://7733992528"
+    Icon.ImageColor3 = Color3.fromRGB(155, 90, 255)
+    Icon.ZIndex = 203
+    Icon.Parent = Header
+
+    local Title = Instance.new("TextLabel")
+    Title.BackgroundTransparency = 1
+    Title.Position = UDim2.new(0, 35, 0, 0)
+    Title.Size = UDim2.new(1, -130, 1, 0)
+    Title.Font = Enum.Font.FredokaOne
+    Title.Text = "Quantum Onyx — Keyless"
+    Title.TextColor3 = Color3.fromRGB(220, 200, 255)
+    Title.TextSize = 14
+    Title.TextXAlignment = Enum.TextXAlignment.Left
+    Title.ZIndex = 203
+    Title.Parent = Header
+
+    local CloseBtn = Instance.new("ImageButton")
+    CloseBtn.BackgroundTransparency = 1
+    CloseBtn.AnchorPoint = Vector2.new(1, 0.5)
+    CloseBtn.Position = UDim2.new(1, -8, 0.5, 0)
+    CloseBtn.Size = UDim2.new(0, 20, 0, 20)
+    CloseBtn.Image = "rbxassetid://79324227570635"
+    CloseBtn.ImageColor3 = Color3.fromRGB(200, 80, 80)
+    CloseBtn.ZIndex = 203
+    CloseBtn.Parent = Header
+    CloseBtn.MouseButton1Click:Connect(function()
+        SG:Destroy()
+    end)
+
+    local Divider = Instance.new("Frame")
+    Divider.BackgroundColor3 = Color3.fromRGB(120, 60, 220)
+    Divider.BackgroundTransparency = 0.3
+    Divider.BorderSizePixel = 0
+    Divider.Position = UDim2.new(0, 0, 0, 44)
+    Divider.Size = UDim2.new(1, 0, 0, 1)
+    Divider.ZIndex = 202
+    Divider.Parent = Card
+
+    -- Texto informativo
+    local InfoText = Instance.new("TextLabel")
+    InfoText.BackgroundTransparency = 1
+    InfoText.Position = UDim2.new(0.5, 0, 0, 70)
+    InfoText.Size = UDim2.new(0.8, 0, 0, 30)
+    InfoText.Font = Enum.Font.Gotham
+    InfoText.Text = "Sistema de key ELIMINADO"
+    InfoText.TextColor3 = Color3.fromRGB(80, 230, 130)
+    InfoText.TextSize = 16
+    InfoText.TextXAlignment = Enum.TextXAlignment.Center
+    InfoText.ZIndex = 203
+    InfoText.Parent = Card
+
+    local SubText = Instance.new("TextLabel")
+    SubText.BackgroundTransparency = 1
+    SubText.Position = UDim2.new(0.5, 0, 0, 100)
+    SubText.Size = UDim2.new(0.8, 0, 0, 20)
+    SubText.Font = Enum.Font.Gotham
+    SubText.Text = "Selecciona la versión que quieres cargar"
+    SubText.TextColor3 = Color3.fromRGB(175, 155, 210)
+    SubText.TextSize = 12
+    SubText.TextXAlignment = Enum.TextXAlignment.Center
+    SubText.ZIndex = 203
+    SubText.Parent = Card
+
+    -- Botones
+    local BtnW = 130
+    local BtnH = 40
+    local BtnY = 140
+
+    local function MakeBtn(label, px, bg, tc, cb)
+        local btn = Instance.new("TextButton")
+        btn.BackgroundColor3 = bg
+        btn.BackgroundTransparency = 0
+        btn.BorderSizePixel = 0
+        btn.Position = UDim2.new(0, px, 0, BtnY)
+        btn.Size = UDim2.new(0, BtnW, 0, BtnH)
+        btn.AutoButtonColor = false
+        btn.Text = ""
+        btn.ClipsDescendants = true
+        btn.ZIndex = 202
+        btn.Parent = Card
+
+        local btnCorner = Instance.new("UICorner")
+        btnCorner.CornerRadius = UDim.new(0, 7)
+        btnCorner.Parent = btn
+
+        local btnLabel = Instance.new("TextLabel")
+        btnLabel.BackgroundTransparency = 1
+        btnLabel.Size = UDim2.new(1, 0, 1, 0)
+        btnLabel.Font = Enum.Font.FredokaOne
+        btnLabel.Text = label
+        btnLabel.TextColor3 = tc
+        btnLabel.TextSize = 13
+        btnLabel.TextXAlignment = Enum.TextXAlignment.Center
+        btnLabel.ZIndex = 203
+        btnLabel.Parent = btn
+
+        btn.MouseButton1Click:Connect(cb)
+        return btn
+    end
+
+    MakeBtn("Cargar Free", 20, Color3.fromRGB(45, 20, 85), Color3.fromRGB(200, 165, 255), function()
+        SG:Destroy()
+        LoadScript("Free")
+    end)
+
+    MakeBtn("Cargar Premium", W/2 - BtnW/2, Color3.fromRGB(65, 25, 130), Color3.fromRGB(225, 180, 255), function()
+        SG:Destroy()
+        LoadScript("Premium")
+    end)
+
+    MakeBtn("Salir", W - BtnW - 20, Color3.fromRGB(60, 20, 20), Color3.fromRGB(255, 150, 150), function()
+        SG:Destroy()
+    end)
+end
+
+-- ============================================================
+-- INICIALIZACIÓN
+-- ============================================================
+Notify("Quantum Onyx", "Keyless mode activated!", Color3.fromRGB(80, 230, 130))
+ShowKeylessUI()
