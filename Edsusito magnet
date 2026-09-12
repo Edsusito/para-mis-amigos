@@ -1,0 +1,552 @@
+--[[
+    EdsusitoMagnet v17 - Anti-Desync Focus
+    Prioridad: que los NPCs se sientan lo más reales posible
+]]
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UIS = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+
+local LocalPlayer = Players.LocalPlayer
+
+local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
+local RegisterHit = Net:WaitForChild("RE/RegisterHit")
+local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
+
+-- ==================== CONFIG ====================
+local Config = {
+    Enabled = false,
+    FastAttack = true,
+    Range = 320,
+    MaxTargets = 10,          -- un poco más bajo = menos desync
+    Distance = 8,
+    Position = "Frente",
+    AttackDelay = 0.025,
+    MoveSpeed = 0.85,         -- un poco más lento = más estable
+}
+
+local MagnetConnection = nil
+local FastAttackConnection = nil
+local isMinimized = false
+local Time = 0
+
+-- ==================== GUI ====================
+local function CreateGUI()
+    local old = CoreGui:FindFirstChild("EdsusitoMagnet")
+    if old then old:Destroy() end
+
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "EdsusitoMagnet"
+    ScreenGui.ResetOnSpawn = false
+    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    ScreenGui.Parent = CoreGui
+
+    local Main = Instance.new("Frame")
+    Main.Name = "Main"
+    Main.Size = UDim2.new(0, 280, 0, 455)
+    Main.Position = UDim2.new(0, 18, 0.07, 0)
+    Main.BackgroundColor3 = Color3.fromRGB(12, 14, 22)
+    Main.BorderSizePixel = 0
+    Main.Parent = ScreenGui
+
+    Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 14)
+    local Stroke = Instance.new("UIStroke")
+    Stroke.Color = Color3.fromRGB(40, 90, 160)
+    Stroke.Thickness = 1.6
+    Stroke.Parent = Main
+
+    local Title = Instance.new("TextLabel")
+    Title.Size = UDim2.new(1, -75, 0, 24)
+    Title.Position = UDim2.new(0, 14, 0, 8)
+    Title.BackgroundTransparency = 1
+    Title.Text = "EdsusitoMagnet"
+    Title.TextColor3 = Color3.fromRGB(180, 220, 255)
+    Title.Font = Enum.Font.GothamBold
+    Title.TextSize = 15
+    Title.TextXAlignment = Enum.TextXAlignment.Left
+    Title.Parent = Main
+
+    local MinBtn = Instance.new("TextButton")
+    MinBtn.Size = UDim2.new(0, 26, 0, 26)
+    MinBtn.Position = UDim2.new(1, -62, 0, 8)
+    MinBtn.BackgroundColor3 = Color3.fromRGB(30, 40, 60)
+    MinBtn.Text = "–"
+    MinBtn.TextColor3 = Color3.fromRGB(200, 220, 255)
+    MinBtn.Font = Enum.Font.GothamBold
+    MinBtn.TextSize = 16
+    MinBtn.Parent = Main
+    Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0, 7)
+
+    local CloseBtn = Instance.new("TextButton")
+    CloseBtn.Size = UDim2.new(0, 26, 0, 26)
+    CloseBtn.Position = UDim2.new(1, -32, 0, 8)
+    CloseBtn.BackgroundColor3 = Color3.fromRGB(40, 50, 80)
+    CloseBtn.Text = "×"
+    CloseBtn.TextColor3 = Color3.fromRGB(200, 220, 255)
+    CloseBtn.Font = Enum.Font.GothamBold
+    CloseBtn.TextSize = 16
+    CloseBtn.Parent = Main
+    Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 7)
+
+    local Status = Instance.new("TextLabel")
+    Status.Name = "Status"
+    Status.Size = UDim2.new(1, -20, 0, 18)
+    Status.Position = UDim2.new(0, 14, 0, 36)
+    Status.BackgroundTransparency = 1
+    Status.Text = "Estado: OFF"
+    Status.TextColor3 = Color3.fromRGB(140, 160, 190)
+    Status.Font = Enum.Font.Gotham
+    Status.TextSize = 12
+    Status.TextXAlignment = Enum.TextXAlignment.Left
+    Status.Parent = Main
+
+    local function MakeInput(name, y, default)
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(0, 150, 0, 16)
+        label.Position = UDim2.new(0, 14, 0, y)
+        label.BackgroundTransparency = 1
+        label.Text = name
+        label.TextColor3 = Color3.fromRGB(160, 190, 230)
+        label.Font = Enum.Font.Gotham
+        label.TextSize = 12
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Parent = Main
+
+        local box = Instance.new("TextBox")
+        box.Size = UDim2.new(0, 58, 0, 22)
+        box.Position = UDim2.new(1, -72, 0, y - 3)
+        box.BackgroundColor3 = Color3.fromRGB(22, 28, 42)
+        box.Text = tostring(default)
+        box.TextColor3 = Color3.fromRGB(220, 235, 255)
+        box.Font = Enum.Font.GothamMedium
+        box.TextSize = 13
+        box.Parent = Main
+        Instance.new("UICorner", box).CornerRadius = UDim.new(0, 6)
+        local s = Instance.new("UIStroke")
+        s.Color = Color3.fromRGB(40, 70, 120)
+        s.Thickness = 1
+        s.Parent = box
+        return box
+    end
+
+    local DistBox = MakeInput("Distancia / Radio:", 62, Config.Distance)
+    local RangeBox = MakeInput("Rango atracción:", 90, Config.Range)
+    local MaxBox = MakeInput("Máx NPCs:", 118, Config.MaxTargets)
+    local SpeedBox = MakeInput("Velocidad animación:", 146, Config.MoveSpeed)
+
+    local PosLabel = Instance.new("TextLabel")
+    PosLabel.Size = UDim2.new(1, -20, 0, 16)
+    PosLabel.Position = UDim2.new(0, 14, 0, 178)
+    PosLabel.BackgroundTransparency = 1
+    PosLabel.Text = "Modo de farmeo:"
+    PosLabel.TextColor3 = Color3.fromRGB(160, 190, 230)
+    PosLabel.Font = Enum.Font.Gotham
+    PosLabel.TextSize = 12
+    PosLabel.TextXAlignment = Enum.TextXAlignment.Left
+    PosLabel.Parent = Main
+
+    local modes = {
+        {"Frente", "Escudo", "Fila"},
+        {"Circulo", "Torre", "Bounce"},
+        {"Troll1", "Troll2"}
+    }
+    local posButtons = {}
+
+    for row = 1, 3 do
+        for col = 1, #modes[row] do
+            local name = modes[row][col]
+            local btn = Instance.new("TextButton")
+            btn.Size = UDim2.new(0, 80, 0, 26)
+            btn.Position = UDim2.new(0, 14 + (col-1)*86, 0, 198 + (row-1)*32)
+            btn.BackgroundColor3 = Color3.fromRGB(22, 30, 48)
+            btn.Text = name
+            btn.TextColor3 = Color3.fromRGB(190, 210, 240)
+            btn.Font = Enum.Font.Gotham
+            btn.TextSize = 12
+            btn.Parent = Main
+            Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+            local s = Instance.new("UIStroke")
+            s.Color = Color3.fromRGB(40, 70, 120)
+            s.Thickness = 1
+            s.Parent = btn
+            posButtons[name] = btn
+        end
+    end
+
+    local FALabel = Instance.new("TextLabel")
+    FALabel.Size = UDim2.new(0, 100, 0, 16)
+    FALabel.Position = UDim2.new(0, 14, 0, 300)
+    FALabel.BackgroundTransparency = 1
+    FALabel.Text = "Fast Attack:"
+    FALabel.TextColor3 = Color3.fromRGB(160, 190, 230)
+    FALabel.Font = Enum.Font.Gotham
+    FALabel.TextSize = 12
+    FALabel.TextXAlignment = Enum.TextXAlignment.Left
+    FALabel.Parent = Main
+
+    local FAButton = Instance.new("TextButton")
+    FAButton.Size = UDim2.new(0, 70, 0, 24)
+    FAButton.Position = UDim2.new(1, -84, 0, 296)
+    FAButton.BackgroundColor3 = Color3.fromRGB(30, 70, 130)
+    FAButton.Text = "ON"
+    FAButton.TextColor3 = Color3.fromRGB(220, 240, 255)
+    FAButton.Font = Enum.Font.GothamMedium
+    FAButton.TextSize = 12
+    FAButton.Parent = Main
+    Instance.new("UICorner", FAButton).CornerRadius = UDim.new(0, 6)
+
+    local Button = Instance.new("TextButton")
+    Button.Size = UDim2.new(1, -28, 0, 32)
+    Button.Position = UDim2.new(0, 14, 1, -46)
+    Button.BackgroundColor3 = Color3.fromRGB(25, 55, 110)
+    Button.Text = "Activar Magnet  [P]"
+    Button.TextColor3 = Color3.fromRGB(220, 240, 255)
+    Button.Font = Enum.Font.GothamMedium
+    Button.TextSize = 13
+    Button.Parent = Main
+    Instance.new("UICorner", Button).CornerRadius = UDim.new(0, 8)
+
+    local MiniBtn = Instance.new("TextButton")
+    MiniBtn.Size = UDim2.new(0, 44, 0, 44)
+    MiniBtn.Position = UDim2.new(0, 18, 0.38, 0)
+    MiniBtn.BackgroundColor3 = Color3.fromRGB(15, 20, 35)
+    MiniBtn.Text = "EM"
+    MiniBtn.TextColor3 = Color3.fromRGB(160, 200, 255)
+    MiniBtn.Font = Enum.Font.GothamBold
+    MiniBtn.TextSize = 14
+    MiniBtn.Visible = false
+    MiniBtn.Parent = ScreenGui
+    Instance.new("UICorner", MiniBtn).CornerRadius = UDim.new(0, 11)
+    local ms = Instance.new("UIStroke")
+    ms.Color = Color3.fromRGB(50, 100, 180)
+    ms.Thickness = 1.6
+    ms.Parent = MiniBtn
+
+    local dragging, dragStart, startPos
+    Main.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = Main.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
+        end
+    end)
+    UIS.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+
+    return ScreenGui, Main, Status, Button, DistBox, RangeBox, MaxBox, SpeedBox, posButtons, MinBtn, CloseBtn, MiniBtn, FAButton
+end
+
+local ScreenGui, MainFrame, StatusLabel, ToggleButton, DistanceBox, RangeBox, MaxBox, SpeedBox, PosButtons, MinimizeBtn, CloseBtn, MiniButton, FastAttackBtn = CreateGUI()
+
+local function UpdatePositionButtons()
+    for name, btn in pairs(PosButtons) do
+        if name == Config.Position then
+            btn.BackgroundColor3 = Color3.fromRGB(35, 80, 150)
+            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        else
+            btn.BackgroundColor3 = Color3.fromRGB(22, 30, 48)
+            btn.TextColor3 = Color3.fromRGB(190, 210, 240)
+        end
+    end
+end
+
+local function UpdateButtons()
+    FastAttackBtn.Text = Config.FastAttack and "ON" or "OFF"
+    FastAttackBtn.BackgroundColor3 = Config.FastAttack and Color3.fromRGB(30, 90, 160) or Color3.fromRGB(40, 50, 70)
+
+    if Config.Enabled then
+        StatusLabel.Text = "Estado: ON"
+        StatusLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
+        ToggleButton.Text = "Desactivar Magnet  [P]"
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 60, 120)
+    else
+        StatusLabel.Text = "Estado: OFF"
+        StatusLabel.TextColor3 = Color3.fromRGB(140, 160, 190)
+        ToggleButton.Text = "Activar Magnet  [P]"
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(25, 55, 110)
+    end
+    UpdatePositionButtons()
+end
+
+DistanceBox.FocusLost:Connect(function()
+    local n = tonumber(DistanceBox.Text)
+    if n then Config.Distance = math.clamp(math.floor(n), 1, 50) end
+    DistanceBox.Text = tostring(Config.Distance)
+end)
+RangeBox.FocusLost:Connect(function()
+    local n = tonumber(RangeBox.Text)
+    if n then Config.Range = math.clamp(math.floor(n), 50, 2000) end
+    RangeBox.Text = tostring(Config.Range)
+end)
+MaxBox.FocusLost:Connect(function()
+    local n = tonumber(MaxBox.Text)
+    if n then Config.MaxTargets = math.clamp(math.floor(n), 1, 30) end
+    MaxBox.Text = tostring(Config.MaxTargets)
+end)
+SpeedBox.FocusLost:Connect(function()
+    local n = tonumber(SpeedBox.Text)
+    if n then Config.MoveSpeed = math.clamp(n, 0.3, 3) end
+    SpeedBox.Text = tostring(Config.MoveSpeed)
+end)
+
+for name, btn in pairs(PosButtons) do
+    btn.MouseButton1Click:Connect(function()
+        Config.Position = name
+        UpdatePositionButtons()
+    end)
+end
+
+FastAttackBtn.MouseButton1Click:Connect(function()
+    Config.FastAttack = not Config.FastAttack
+    UpdateButtons()
+    if Config.FastAttack and Config.Enabled then StartFastAttack() else StopFastAttack() end
+end)
+
+-- ==================== FAST ATTACK ====================
+local function AttackMultipleTargets(targets)
+    pcall(function()
+        if not targets or #targets == 0 then return end
+        local allTargets = {}
+        for _, t in pairs(targets) do
+            local head = t:FindFirstChild("Head")
+            if head then table.insert(allTargets, {t, head}) end
+        end
+        if #allTargets == 0 then return end
+        RegisterAttack:FireServer(0)
+        RegisterHit:FireServer(allTargets[1][2], allTargets)
+    end)
+end
+
+local function StartFastAttack()
+    if FastAttackConnection then task.cancel(FastAttackConnection) end
+    FastAttackConnection = task.spawn(function()
+        while Config.FastAttack and Config.Enabled do
+            task.wait(Config.AttackDelay)
+            local myHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if not myHRP then continue end
+
+            local list = {}
+            local enemies = workspace:FindFirstChild("Enemies")
+            if enemies then
+                for _, npc in pairs(enemies:GetChildren()) do
+                    local hum = npc:FindFirstChild("Humanoid")
+                    local hrp = npc:FindFirstChild("HumanoidRootPart")
+                    if hum and hrp and hum.Health > 0 then
+                        local dist = (hrp.Position - myHRP.Position).Magnitude
+                        if dist <= Config.Range then
+                            table.insert(list, {char = npc, dist = dist})
+                        end
+                    end
+                end
+            end
+            table.sort(list, function(a,b) return a.dist < b.dist end)
+            local final = {}
+            for i = 1, math.min(3, #list) do table.insert(final, list[i].char) end
+            if #final > 0 then AttackMultipleTargets(final) end
+        end
+    end)
+end
+
+local function StopFastAttack()
+    if FastAttackConnection then task.cancel(FastAttackConnection) FastAttackConnection = nil end
+end
+
+-- ==================== ANTI-DESYNC MAGNET ====================
+local function ForceNPC(nhrp, hum, targetCF)
+    -- Método más agresivo posible desde cliente
+    pcall(function()
+        nhrp.CFrame = targetCF
+        nhrp.AssemblyLinearVelocity = Vector3.zero
+        nhrp.AssemblyAngularVelocity = Vector3.zero
+        nhrp.CanCollide = false
+        nhrp.Anchored = false
+
+        if hum then
+            hum.PlatformStand = true
+            hum.WalkSpeed = 0
+            hum.JumpPower = 0
+            hum.AutoRotate = false
+        end
+    end)
+end
+
+local function GetClosestTargets(hrp)
+    local enemies = workspace:FindFirstChild("Enemies")
+    if not enemies then return {} end
+    local list = {}
+    for _, npc in pairs(enemies:GetChildren()) do
+        local nhrp = npc:FindFirstChild("HumanoidRootPart")
+        local hum = npc:FindFirstChild("Humanoid")
+        if nhrp and hum and hum.Health > 0 then
+            local dist = (nhrp.Position - hrp.Position).Magnitude
+            if dist <= Config.Range then
+                table.insert(list, {npc = npc, hrp = nhrp, hum = hum, dist = dist})
+            end
+        end
+    end
+    table.sort(list, function(a,b) return a.dist < b.dist end)
+    local res = {}
+    for i = 1, math.min(Config.MaxTargets, #list) do
+        table.insert(res, list[i])
+    end
+    return res
+end
+
+local function GetNearestPlayerHRP(fromHRP)
+    local closest, closestDist = nil, math.huge
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+            local dist = (plr.Character.HumanoidRootPart.Position - fromHRP.Position).Magnitude
+            if dist < closestDist and dist < 2000 then
+                closestDist = dist
+                closest = plr.Character.HumanoidRootPart
+            end
+        end
+    end
+    return closest
+end
+
+local function StartMagnet()
+    if MagnetConnection then MagnetConnection:Disconnect() end
+
+    -- Forzar SimulationRadius constantemente
+    pcall(function()
+        sethiddenproperty(LocalPlayer, "SimulationRadius", math.huge)
+    end)
+
+    MagnetConnection = RunService.Heartbeat:Connect(function(dt)
+        if not Config.Enabled then return end
+
+        -- Reaplicar SimulationRadius cada frame (ayuda)
+        pcall(function()
+            sethiddenproperty(LocalPlayer, "SimulationRadius", math.huge)
+        end)
+
+        Time = Time + dt * Config.MoveSpeed
+
+        local char = LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+
+        local targets = GetClosestTargets(hrp)
+        local total = math.max(#targets, 1)
+        local d = Config.Distance
+
+        for i, data in ipairs(targets) do
+            local nhrp = data.hrp
+            local hum = data.hum
+            local idx = i - 1
+            local mode = Config.Position
+            local targetCF
+
+            if mode == "Escudo" then
+                local golden = math.pi * (3 - math.sqrt(5))
+                local y = 1 - (idx / math.max(total-1,1)) * 2
+                local r = math.sqrt(math.max(0, 1 - y*y))
+                local theta = golden * idx
+                targetCF = hrp.CFrame * CFrame.new(math.cos(theta)*r*d, y*d, math.sin(theta)*r*d)
+
+            elseif mode == "Fila" then
+                local spacing = 3.5
+                local start = -((total-1)*spacing)/2
+                targetCF = hrp.CFrame * CFrame.new(start + idx*spacing, -1, -d)
+
+            elseif mode == "Circulo" then
+                local base = (idx / total) * math.pi * 2
+                local angle = base + Time * 1.1
+                targetCF = hrp.CFrame * CFrame.new(math.cos(angle)*d, -1, math.sin(angle)*d)
+
+            elseif mode == "Torre" then
+                targetCF = hrp.CFrame * CFrame.new(0, idx * 4.2, -2)
+
+            elseif mode == "Bounce" then
+                local speed = 1.6
+                local x = math.sin(Time * speed + idx * 1.7) * d
+                local y = math.abs(math.sin(Time * speed * 1.2 + idx * 2.0)) * (d * 0.7) - 1
+                local z = math.cos(Time * speed * 0.85 + idx * 1.3) * d
+                targetCF = hrp.CFrame * CFrame.new(x, y, z)
+
+            elseif mode == "Troll1" then
+                local target = GetNearestPlayerHRP(hrp)
+                if target then
+                    local off = CFrame.new((idx%4)-1.5, 0, math.floor(idx/4)*1.5)
+                    targetCF = target.CFrame * off
+                else
+                    targetCF = hrp.CFrame * CFrame.new(0, -1, -d)
+                end
+
+            elseif mode == "Troll2" then
+                local target = GetNearestPlayerHRP(hrp)
+                if target then
+                    local pulse = (math.sin(Time * 2.8 + idx * 0.7) + 1) / 2
+                    local dist = 5 + pulse * 11
+                    local angle = (idx / total) * math.pi * 2 + Time * 0.5
+                    targetCF = target.CFrame * CFrame.new(math.cos(angle)*dist, 1, math.sin(angle)*dist)
+                else
+                    targetCF = hrp.CFrame * CFrame.new(0, -1, -d)
+                end
+
+            else -- Frente
+                targetCF = hrp.CFrame * CFrame.new(0, -1.2, -d)
+            end
+
+            ForceNPC(nhrp, hum, targetCF)
+        end
+    end)
+end
+
+local function StopScript()
+    Config.Enabled = false
+    StopFastAttack()
+    if MagnetConnection then MagnetConnection:Disconnect() MagnetConnection = nil end
+end
+
+local function Toggle()
+    Config.Enabled = not Config.Enabled
+    UpdateButtons()
+    if Config.Enabled then
+        StartMagnet()
+        if Config.FastAttack then StartFastAttack() end
+    else
+        StopScript()
+    end
+end
+
+MinimizeBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    MiniButton.Visible = true
+end)
+MiniButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = true
+    MiniButton.Visible = false
+end)
+CloseBtn.MouseButton1Click:Connect(function()
+    StopScript()
+    ScreenGui:Destroy()
+end)
+ToggleButton.MouseButton1Click:Connect(Toggle)
+
+UIS.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == Enum.KeyCode.P then Toggle() end
+end)
+
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(1.5)
+    if Config.Enabled then
+        StartMagnet()
+        if Config.FastAttack then StartFastAttack() end
+    end
+end)
+
+UpdateButtons()
+print("[EdsusitoMagnet] v17 Anti-Desync cargado")
